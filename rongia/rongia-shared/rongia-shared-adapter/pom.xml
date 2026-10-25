@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia-shared</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-shared-adapter</artifactId>
+    <name>rongia-shared-adapter</name>
+    <description>共享适配器层：集中承载各业务上下文 adapter 层共用的 Web 技术组件与接口文档能力</description>
+
+    <!-- ==========================================================
+         各上下文（basedata / inventory / production / sales）的 adapter
+         只需依赖本模块一行，即可获得全部 Web 组件，无需各自重复声明。
+         版本统一由根 pom 的 dependencyManagement 管理，此处一律不写 <version>。
+         ========================================================== -->
+    <dependencies>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-shared-infrastructure</artifactId>
+            <version>1.0.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- Spring Boot Web：内嵌 Tomcat + Spring MVC（自动传递 jakarta.servlet-api） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot AspectJ：AOP 切面支持（日志、权限、限流等横切关注点） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+
+        <!-- Knife4j：OpenAPI3 增强 UI（Spring Boot 4 专属 starter，会传递引入 springdoc + swagger-models） -->
+        <dependency>
+            <groupId>com.baizhukui</groupId>
+            <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+        </dependency>
+    </dependencies>
+</project>

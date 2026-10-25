@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia-shared</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-shared-application</artifactId>
+    <name>rongia-shared-application</name>
+    <description>共享应用层：集中承载各业务上下文 application 层共用的技术组件与用例编排基础能力</description>
+
+    <!-- ==========================================================
+         各上下文（basedata / inventory / production / sales）的 application
+         只需依赖本模块一行，即可获得全部技术组件，无需各自重复声明。
+         版本统一由根 pom 的 dependencyManagement 管理，此处一律不写 <version>。
+         ========================================================== -->
+    <dependencies>
+        <!-- Spring Boot 基础：@Component / @Service 等 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Spring JDBC：提供事务管理器、数据源 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- Swagger 注解：@Schema 等（OpenAPI 模型描述） -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+        </dependency>
+
+        <!-- MapStruct：DTO / 领域对象映射 -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
+        <!-- Spring Web 基础模块：ResponseEntity / HttpHeaders / MultipartFile 等 Web 抽象，不含 MVC 实现 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+
+        <!-- Apache POI：Excel / Word 读写（用例层直接处理导入导出文件） -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+        </dependency>
+
+        <!-- Axon Framework：CQRS 命令与查询分发 -->
+        <dependency>
+            <groupId>io.axoniq.framework</groupId>
+            <artifactId>axoniq-spring-boot-starter</artifactId>
+            <exclusions>
+                <!-- 排除 Axon Server 连接器：本项目使用本地事件存储，不接入 Axon Server -->
+                <exclusion>
+                    <groupId>io.axoniq.framework</groupId>
+                    <artifactId>axon-server-connector</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.axoniq</groupId>
+                    <artifactId>axonserver-connector-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+</project>

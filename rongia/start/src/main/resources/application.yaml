@@ -1,0 +1,180 @@
+# 服务器配置
+server:
+  # 服务端口号
+  port: 9001
+
+# Spring 基础配置
+spring:
+  # 应用信息
+  application:
+    # 应用名称
+    name: RONGIA
+  # 环境配置
+  profiles:
+    # 激活的环境（本地 local / 生产 prod），可用启动参数覆盖
+    active: local
+
+  # 邮件服务
+  mail:
+    # SMTP 服务器地址
+    host: fastsmtp.qiye.163.com
+    # SMTP 端口
+    port: 25
+    # 发件账号
+    username: no_reply@hkolens.com
+    # 发件密码
+    password: bd7mHFuba6m6w92E
+    # 默认编码
+    default-encoding: UTF-8
+    # 发件人显示名称
+    personal: HK-IT
+    # SMTP 附加属性
+    properties:
+      mail:
+        smtp:
+          # 需要认证
+          auth: true
+          ssl:
+            # 是否启用 SSL（25 端口不启用）
+            enable: false
+
+  # JPA / Hibernate
+  jpa:
+    # 是否在控制台打印 SQL，生产环境关闭
+    show-sql: true
+    # 禁用 Open Session In View，避免连接被长期占用
+    open-in-view: false
+    # Hibernate 配置
+    hibernate:
+      # 启动时校验实体映射与数据库表结构是否一致，不修改表结构
+      ddl-auto: validate
+      # 命名策略：保持实体字段名和数据库列名一致（不做下划线转换）
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    # Hibernate 原生属性
+    properties:
+      hibernate:
+        # 自动给保留字加引号（如 User、Order 等）
+        auto_quote_keyword: true
+        # 格式化打印 SQL，方便调试
+        format_sql: true
+        # 再次声明禁用 OSIV（和上面 jpa.open-in-view 对应）
+        open-in-view: false
+
+  # Flyway 数据库迁移（固定，全环境共用）
+  flyway:
+    # 启用 Flyway
+    enabled: true
+    # 迁移脚本存放位置
+    locations: classpath:db/migration
+    # 对接已存在的数据库时设为 true（首次会建立 baseline）
+    baseline-on-migrate: true
+    # 启动时校验脚本 checksum，防止脚本被意外修改
+    validate-on-migrate: true
+
+# MyBatis-Plus 配置（只读 + 全手写 SQL 场景）
+mybatis-plus:
+  # 配置项
+  configuration:
+    # 控制台打印 SQL，方便调试（生产环境换 NoLoggingImpl）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 数据库下划线列名是否自动转 Java 驼峰字段
+    # 这里设为 false：因为列名本来就用 PascalCase（IsDeleted），实体字段是驼峰（isDeleted），需要手动映射
+    map-underscore-to-camel-case: false
+  # 全局配置
+  global-config:
+    # 数据库配置
+    db-config:
+      # 自动生成 SQL 时，表名统一加方括号（SQL Server 转义，避免保留字冲突）
+      # 例：FROM User → FROM [User]
+      table-format: "[%s]"
+      # 自动生成 SQL 时，列名统一加方括号
+      # 例：SELECT Name → SELECT [Name]
+      column-format: "[%s]"
+  # Mapper XML 文件位置
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+# JWT 配置
+jwt:
+  # 签名密钥（生产环境请使用环境变量或密钥管理服务）
+  # HS256 要求密钥长度至少 256 位（32 字节）
+  secret: rongia-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+  # 访问令牌过期时间（毫秒），24 小时
+  access-token-expiration: 86400000
+  # 刷新令牌过期时间（毫秒），7 天
+  refresh-token-expiration: 604800000
+
+# SpringDoc OpenAPI 配置
+springdoc:
+  # OpenAPI JSON 配置
+  api-docs:
+    # OpenAPI JSON 地址
+    path: /v3/api-docs
+  # Swagger UI 配置
+  swagger-ui:
+    # Swagger UI 地址
+    path: /swagger-ui.html
+
+# Knife4j 配置（增强版 Swagger UI）
+knife4j:
+  # 启用 Knife4j 增强 UI
+  enable: true
+  # 界面设置
+  setting:
+    # 界面语言：简体中文
+    language: zh_cn
+  # 生产模式：开启后屏蔽文档页面（生产环境应设为 true）
+  production: false
+
+# JobRunr 配置（后台任务调度）
+jobrunr:
+  # 任务配置
+  jobs:
+    # 任务失败时的默认重试次数
+    default-number-of-retries: 3
+
+  # 数据库
+  database:
+    # 存储类型：sqlserver
+    type: sqlserver
+    # 表名前缀
+    table-prefix: jobrunr.
+    # 是否跳过创建表（false = 自动建表）
+    skip-create: false
+
+  # 后台任务处理器
+  background-job-server:
+    # 是否启用后台任务处理器
+    enabled: false
+
+  # 监控面板
+  dashboard:
+    # 是否启用内置监控面板（http://localhost:8000/dashboard）
+    enabled: false
+
+  # 定时任务调度
+  job-scheduler:
+    # 是否启用定时任务调度
+    enabled: true
+
+  # 其他
+  miscellaneous:
+    # 是否允许匿名数据上报（关闭，避免外网请求）
+    allow-anonymous-data-usage: false
+
+
+
+# 日志配置
+logging:
+  # 各包的日志级别
+  level:
+    # 业务包：平时 INFO，排查问题时临时改成 DEBUG
+    com.rongia: info
+    # Spring Cache：关掉 TRACE（否则会打印所有缓存操作）
+    org.springframework.cache: info
+    # Spring Security：关掉 DEBUG（否则会打印每个请求的过滤器链）
+    org.springframework.security: warn
+    # Spring Web：关掉 DEBUG（否则会打印 DispatcherServlet 细节）
+    org.springframework.web: warn
+    # Flowable：平时 INFO，排查流程问题时临时改成 DEBUG
+    org.flowable: info

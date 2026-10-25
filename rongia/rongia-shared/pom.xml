@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-shared</artifactId>
+    <packaging>pom</packaging>
+    <name>rongia-shared</name>
+    <description>共享层聚合模块：统一收拢 domain / application / infrastructure / adapter 四个共享模块</description>
+
+    <!-- ==========================================================
+         本模块只做目录分组与聚合，不含任何依赖声明。
+         四个共享模块的 parent 指向本模块，继承链为：
+             rongia-shared-*  ->  rongia-shared  ->  rongia  ->  spring-boot-starter-parent
+         结构与 rongia-basedata / rongia-inventory / rongia-production /
+         rongia-sales 四个业务上下文完全一致。
+         ========================================================== -->
+    <modules>
+        <module>rongia-shared-domain</module>
+        <module>rongia-shared-application</module>
+        <module>rongia-shared-infrastructure</module>
+        <module>rongia-shared-adapter</module>
+    </modules>
+</project>

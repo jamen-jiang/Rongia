@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-system</artifactId>
+    <packaging>pom</packaging>
+    <name>rongia-system</name>
+    <description>系统管理上下文：用户、部门、岗位、角色、权限、登录认证</description>
+    <modules>
+        <module>rongia-system-domain</module>
+        <module>rongia-system-application</module>
+        <module>rongia-system-infrastructure</module>
+        <module>rongia-system-adapter</module>
+    </modules>
+</project>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>start</artifactId>
+    <name>start</name>
+    <description>start</description>
+
+    <dependencies>
+        <!-- 1. 销售上下文（必须依赖具体的 application、adapter 和 infrastructure） -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-sales-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-sales-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-sales-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 2. 库存上下文                                -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-inventory-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-inventory-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-inventory-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 3. 基础资料上下文                            -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-basedata-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-basedata-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-basedata-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 4. 生产上下文                                -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-production-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-production-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-production-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 5. 系统管理上下文                            -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-system-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-system-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-system-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Web MVC：HTTP 服务 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <!-- Spring Boot restclient -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-restclient</artifactId>
+        </dependency>
+        <!-- Spring Boot Test：单元测试与集成测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- 打出来的 jar 叫 rongia.jar，方便运维 -->
+        <finalName>rongia</finalName>
+
+        <plugins>
+            <!-- ==========================================================
+                 Spring Boot 打包插件
+                 Spring Boot 4.x 默认 repackage，无需额外配置 execution
+                 ========================================================== -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

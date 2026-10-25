@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- 1. 从 application.yml 中读取数据库配置 -->
+    <springProperty scope="context" name="DB_URL" source="spring.datasource.url"/>
+    <springProperty scope="context" name="DB_USER" source="spring.datasource.username"/>
+    <springProperty scope="context" name="DB_PASS" source="spring.datasource.password"/>
+
+    <!-- 2. 控制台输出 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 3. 文件输出（兜底方案） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/rongia.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/rongia-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 4. 自定义 SQL Server Appender -->
+    <appender name="SQLSERVER_DB"
+              class="com.rongia.infrastructure.core.logging.SqlServerLogAppender">
+        <url>${DB_URL}</url>
+        <user>${DB_USER}</user>
+        <password>${DB_PASS}</password>
+        <tableName>SystemLog</tableName>
+        <queueSize>8192</queueSize>
+        <batchSize>100</batchSize>
+        <pollTimeoutMs>500</pollTimeoutMs>
+        <!-- 只接收 WARN 及以上级别 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+
+    <!-- ============================================================ -->
+    <!-- 5. 日志级别精细控制（压制框架噪音）                            -->
+    <!-- ============================================================ -->
+
+    <!-- 5.1 Spring 框架：只记 WARN+ -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="org.springframework.web.servlet" level="WARN"/>
+    <logger name="org.springframework.web.socket" level="WARN"/>
+    <logger name="org.springframework.boot" level="INFO"/>
+
+    <!-- 5.2 持久层 & 连接池：只记 WARN+ -->
+    <logger name="com.microsoft.sqlserver.jdbc" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="com.baomidou" level="WARN"/>
+    <logger name="org.mybatis" level="WARN"/>
+
+    <!-- 5.3 中间件 & 框架：只记 WARN+ -->
+    <logger name="org.redisson" level="WARN"/>
+    <logger name="org.axonframework" level="WARN"/>
+    <logger name="org.jobrunr" level="INFO"/>
+    <logger name="io.axoniq" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="org.apache" level="WARN"/>
+    <logger name="org.flowable" level="WARN"/>
+
+    <!-- 5.4 你自己的业务包：INFO 级别，WARN+ 才写数据库 -->
+    <logger name="com.rongia" level="INFO" additivity="true">
+        <appender-ref ref="SQLSERVER_DB"/>
+    </logger>
+
+    <!-- ============================================================ -->
+    <!-- 6. 根 Logger：只写控制台和文件，不写数据库                     -->
+    <!-- ============================================================ -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

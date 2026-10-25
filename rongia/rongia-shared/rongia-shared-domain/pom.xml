@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia-shared</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-shared-domain</artifactId>
+    <name>rongia-shared-domain</name>
+    <description>共享领域层：集中承载各业务上下文 domain 层共用的 DDD 构件与领域基础能力</description>
+
+    <dependencies>
+        <!-- Jakarta Persistence API 提供 JPA 标准注解，供 domain 层编译期使用。-->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+        </dependency>
+        <!-- Hibernate 专有注解（@SQLRestriction 等）-->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+    </dependencies>
+</project>

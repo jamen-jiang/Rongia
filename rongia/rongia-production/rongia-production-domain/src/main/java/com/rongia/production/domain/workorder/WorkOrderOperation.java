@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>工单下达时从工艺路线「快照」生成：工序名、工作中心名与工时都冗余存一份，之后路线改版不影响在制工单。
  *
- * <p>这里只保存工序自己的事实（累计良品、累计报废、累计工时、实际起止），不保存「计划投入数量」。工序可投入多少 由前置工序的产出决定，是运行时派生值，由 {@code WorkOrder}
+ * <p>这里只保存工序自己的事实（已完成数量、累计报废、累计工时、实际起止），不保存「计划投入数量」。工序可投入多少 由前置工序的产出决定，是运行时派生值，由 {@code WorkOrder}
  * 计算后传入报工校验——把它在本行存成静态字段， 下达时前置工序还没开工，根本取不到值。
  */
 @NullMarked
@@ -68,28 +68,28 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Column(name = "CycleTime", nullable = false, precision = 18, scale = 2)
   private BigDecimal cycleTime;
 
-  /** 实际开工时间（可空，外协工序为发出时间） */
-  @Column(name = "ActualStartTime")
+  /** 开工时间（照 Odoo 的 date_start：排产铺定的是计划，开工后就是事实；外协工序为发出时间） */
+  @Column(name = "StartTime")
   @Nullable
-  private LocalDateTime actualStartTime;
+  private LocalDateTime startTime;
 
-  /** 实际完工时间（可空） */
-  @Column(name = "ActualEndTime")
+  /** 完工时间（照 Odoo 的 date_finished：铺定的是计划，完工后就是事实） */
+  @Column(name = "EndTime")
   @Nullable
-  private LocalDateTime actualEndTime;
+  private LocalDateTime endTime;
 
-  /** 实际周期时间（分钟，可空，报工汇总） */
-  @Column(name = "ActualCycleTime", precision = 18, scale = 2)
+  /** 实际周期时间（分钟，只读；报工侧按报工单流水汇总回写，照 ERPNext 的 actual_operation_time 口径） */
+  @Column(name = "ActualCycleTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal actualCycleTime = BigDecimal.ZERO;
+
+  /** 已完成数量数量（只读；报工侧按报工单流水汇总回写，照 ERPNext 的 completed_qty 口径） */
+  @Column(name = "ProducedQty", nullable = false, precision = 18, scale = 2)
+  private BigDecimal producedQty = BigDecimal.ZERO;
+
+  /** 生产日期（可空；报工侧按报工单流水取最近一笔回写，照 Odoo 的 production_date 口径） */
+  @Column(name = "ProductionDate")
   @Nullable
-  private BigDecimal actualCycleTime;
-
-  /** 累计良品数量 */
-  @Column(name = "GoodQty", nullable = false, precision = 18, scale = 2)
-  private BigDecimal goodQty;
-
-  /** 累计报废数量 */
-  @Column(name = "LossQty", nullable = false, precision = 18, scale = 2)
-  private BigDecimal lossQty;
+  private LocalDateTime productionDate;
 
   /** 工序顺序 */
   @Column(name = "Sequence", nullable = false)
@@ -119,8 +119,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       int sequence) {
     apply(operationId, operationName, workCenterId, workCenterName, cycleTime, sequence);
     this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
-    this.goodQty = BigDecimal.ZERO;
-    this.lossQty = BigDecimal.ZERO;
   }
 
   /**
@@ -160,6 +158,24 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
+   * 排产：铺计划开工与计划完工时间
+   *
+   * @param startTime 计划开工时间
+   * @param endTime 计划完工时间
+   * @throws DomainException 时间倒挂或工序已开工时抛出
+   */
+  void schedule(LocalDateTime startTime, LocalDateTime endTime) {
+    if (isInProgress() || isCompleted()) {
+      throw new DomainException("工序" + this.operationName + "已开工，不能再排产");
+    }
+    if (endTime.isBefore(startTime)) {
+      throw new DomainException("工序" + this.operationName + "计划完工时间早于计划开工时间");
+    }
+    this.startTime = startTime;
+    this.endTime = endTime;
+  }
+
+  /**
    * 开工（外协工序即发料给供应商）
    *
    * @param startTime 实际开工时间
@@ -170,70 +186,60 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       throw new DomainException("工序" + this.operationName + "当前状态不允许开工");
     }
     this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
-    this.actualStartTime = startTime;
+    this.startTime = startTime;
   }
 
   /**
-   * 报工：累加良品、报废与实际工时
+   * 报工校验：工序必须开工、本次数量必须非负
    *
-   * <p>上限由调用方（工单聚合）算出的可用数量决定：本工序最多能报出前置工序流转过来的数量。
+   * <p>合计不在这里累加——良品、报废、工时的权威数在报工单流水里，由报工侧按流水汇总回写
+   * {@code applyOperationTotals}；本方法只把关（照 ERPNext：校验在工序行、记账在明细）。
    *
-   * @param goodQty 本次良品数量
-   * @param lossQty 本次报废数量
-   * @param workTime 本次工时（分钟）
-   * @param availableQty 本工序可投入数量
-   * @throws DomainException 工序状态不允许、数量为负、或累计报工数超过可投入数时抛出
+   * @param producedQty 本次完成数量
+   * @throws DomainException 工序状态不允许或数量为负时抛出
    */
-  public void report(
-      BigDecimal goodQty, BigDecimal lossQty, BigDecimal workTime, BigDecimal availableQty) {
+  public void report(BigDecimal producedQty) {
     if (!isInProgress()) {
       throw new DomainException("工序" + this.operationName + "未开工，不能报工");
     }
-    if (goodQty.signum() < 0 || lossQty.signum() < 0 || workTime.signum() < 0) {
-      throw new DomainException("报工数量与工时不能为负数");
+    if (producedQty.signum() < 0) {
+      throw new DomainException("报工数量不能为负数");
     }
-    BigDecimal total = this.goodQty.add(this.lossQty).add(goodQty).add(lossQty);
-    if (total.compareTo(availableQty) > 0) {
-      throw new DomainException(
-          "工序" + this.operationName + "累计报工数" + total + "超过可投入数量" + availableQty);
-    }
-    this.goodQty = this.goodQty.add(goodQty);
-    this.lossQty = this.lossQty.add(lossQty);
-    this.actualCycleTime =
-        (this.actualCycleTime == null ? BigDecimal.ZERO : this.actualCycleTime).add(workTime);
   }
 
   /**
-   * 撤回报工：把良品、报废与实际工时从累计值里减回去
+   * 撤回报工的行级校验与状态回退
    *
-   * <p>已完工的工序被撤回时退回加工中并清掉完工时间——报工数没了，这道工序就不能再算做完；后续工序 由工单统一收回放行。
+   * <p>数量回退不在这里做——权威数在报工单流水里，由报工侧重算回写。这里只负责：工序被撤空时退回加工中
+   * 并清掉完工时间（照 ERPNext 的作业卡取消节奏）。
    *
-   * @param goodQty 冲回的良品数量
-   * @param lossQty 冲回的报废数量
-   * @param workTime 冲回的工时（分钟）
-   * @throws DomainException 工序未开工、数量为负、或冲回数超过工序已累计的报工数时抛出
+   * @throws DomainException 工序未开工时抛出
    */
-  void unreport(BigDecimal goodQty, BigDecimal lossQty, BigDecimal workTime) {
+  void unreport() {
     if (!isInProgress() && !isCompleted()) {
       throw new DomainException("工序" + this.operationName + "未开工，不能撤回报工");
     }
-    if (goodQty.signum() < 0 || lossQty.signum() < 0 || workTime.signum() < 0) {
-      throw new DomainException("冲回数量与工时不能为负数");
-    }
-    if (this.goodQty.subtract(goodQty).signum() < 0
-        || this.lossQty.subtract(lossQty).signum() < 0) {
-      throw new DomainException("工序" + this.operationName + "冲回数超过已累计的报工数");
-    }
-    BigDecimal cycleTime = this.actualCycleTime == null ? BigDecimal.ZERO : this.actualCycleTime;
-    if (cycleTime.subtract(workTime).signum() < 0) {
-      throw new DomainException("工序" + this.operationName + "冲回工时超过已累计的工时");
-    }
-    this.goodQty = this.goodQty.subtract(goodQty);
-    this.lossQty = this.lossQty.subtract(lossQty);
-    this.actualCycleTime = cycleTime.subtract(workTime);
-    if (isCompleted()) {
+  }
+
+  /**
+   * 回写流水汇总的合计（落库的只读列，报工侧按流水汇总后回写）
+   *
+   * <p>由报工侧按报工单流水汇总后调用：报工单过账、作废之后各跑一遍，行上的状态推进（撤空退回加工中）也在这
+   * 一并做掉。报废不落行（照 Odoo 的 qty_produced 单一口径，报废的权威数在报工单流水里），生产日期取流水
+   * 最近一笔的业务日期。
+   *
+   * @param producedQty 流水已完成数量
+   * @param actualCycleTime 流水累计工时
+   * @param productionDate 生产日期（可空）
+   */
+  void applyOperationTotals(
+      BigDecimal producedQty, BigDecimal actualCycleTime, @Nullable LocalDateTime productionDate) {
+    this.producedQty = producedQty;
+    this.actualCycleTime = actualCycleTime;
+    this.productionDate = productionDate;
+    if (isCompleted() && producedQty.signum() == 0) {
       this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
-      this.actualEndTime = null;
+      this.endTime = null;
     }
   }
 
@@ -248,7 +254,7 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       throw new DomainException("工序" + this.operationName + "未开工，不能完工");
     }
     this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
-    this.actualEndTime = endTime;
+    this.endTime = endTime;
   }
 
   /**
@@ -270,14 +276,14 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 是否已经报过工（累计良品加报废不为零）
+   * 是否已经报过工（已完成数量加报废不为零）
    *
    * <p>撤回前面的报工要看后面这道工序有没有用掉料，状态说了不算——它可能刚被撤回退回加工中。
    *
    * @return true 表示累计报工数不为零
    */
   boolean hasReported() {
-    return this.goodQty.add(this.lossQty).signum() != 0;
+    return this.producedQty.signum() != 0;
   }
 
   /**

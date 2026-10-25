@@ -14,7 +14,7 @@ spring:
     # SQL Server 驱动
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
     # JDBC 连接地址：jdbc:sqlserver://主机:端口;databaseName=数据库名;其他参数
-    url: jdbc:sqlserver://${HOST:localhost};databaseName=mx_erp_test;encrypt=true;trustServerCertificate=true;
+    url: jdbc:sqlserver://${HOST:localhost};databaseName=rongia;encrypt=true;trustServerCertificate=true;
     # 用户名
     username: sa
     # 密码

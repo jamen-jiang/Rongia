@@ -78,7 +78,14 @@ public class ProductionReportDomainService {
     WorkOrder workOrder = requireWorkOrder(workOrderId);
     WorkOrderOperation operation = requireOperation(workOrder, workOrderOperationId);
     BigDecimal minutes = resolveWorkTime(operation, goodQty, lossQty, workTime);
-    workOrder.reportOperation(operation.getId(), goodQty, lossQty, minutes);
+    workOrder.reportOperation(operation.getId(), goodQty);
+    checkReportGate(workOrder, operation, goodQty);
+    // 回写：本单生效后的流水合计（现有合计 + 本单）；生产日期取建单日
+    workOrder.applyOperationTotals(
+        operation.getId(),
+        operation.getProducedQty().add(goodQty),
+        operation.getActualCycleTime().add(minutes),
+        LocalDateTime.now());
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return productionReportFactory.create(
         workOrder.getId(),
@@ -116,14 +123,41 @@ public class ProductionReportDomainService {
     }
 
     WorkOrder workOrder = requireWorkOrder(model.getWorkOrderId());
-    workOrder.unreportOperation(
-        model.getWorkOrderOperationId(),
-        model.getGoodQty(),
-        model.getLossQty(),
-        model.getWorkTime());
+    workOrder.unreportOperation(model.getWorkOrderOperationId());
 
     model.voidReport(moment);
+    // 回写：本单作废后的流水合计（现有合计 − 本单）；生产日期保持最近一次回写值
+    WorkOrderOperation operation = requireOperation(workOrder, model.getWorkOrderOperationId());
+    workOrder.applyOperationTotals(
+        operation.getId(),
+        operation.getProducedQty().subtract(model.getGoodQty()),
+        operation.getActualCycleTime().subtract(model.getWorkTime()),
+        operation.getProductionDate());
     return model;
+  }
+
+  /**
+   * 报工数量闸：本单生效后的流水合计不得超过本工序的可投入数量
+   *
+   * <p>可投入数量由工单按前置工序的良品数算，权威数在流水里，这道闸放在按流水汇总的地方——报工领域
+   * 服务，而不是工序行（行上不再落库合计）。
+   *
+   * @param workOrder 工单聚合
+   * @param operation 工单工序行（回写之前的瞬时合计）
+   * @param goodQty 本次良品数量
+   * @param lossQty 本次报废数量
+   * @throws DomainException 累计报工数超过可投入数量时抛出
+   */
+  private void checkReportGate(
+      WorkOrder workOrder,
+      WorkOrderOperation operation,
+      BigDecimal goodQty) {
+    BigDecimal total = operation.getProducedQty().add(goodQty);
+    BigDecimal availableQty = workOrder.availableQtyFor(operation.getId());
+    if (total.compareTo(availableQty) > 0) {
+      throw new DomainException(
+          "工序" + operation.getOperationName() + "累计报工数" + total + "超过可投入数量" + availableQty);
+    }
   }
 
   /**

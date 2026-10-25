@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * 工作中心
  *
- * <p>排程与成本归集的单位，也是工序挂靠的对象：一条镀膜线、一个抛光班组各是一个工作中心。 中心只回答「这条线有多快、多少钱一小时」——一天能干多少由排产按工作日历 × 效率算，不在这里存。
- * 同一条线做不同物料的单价差异也不在这里，见 {@code RoutingOperation} 引用的费率卡。
+ * <p>排程与成本归集的单位，也是工序挂靠的对象：一条镀膜线、一个抛光班组各是一个工作中心。 中心只回答「这条线有多快、多少钱一小时、默认从哪发料收货」——一天能干多少由排产按工作日历 ×
+ * 效率算，不在这里存。 同一条线做不同物料的单价差异也不在这里，见 {@code RoutingOperation} 引用的费率卡。
  *
  * <p>准备时间与清理时间挂在这里当默认值：换型调试、完工清场是这条线固有的开销，不随物料变。 个别工序若另有口径，在路线工序上单独指定。
  */
@@ -33,23 +33,10 @@ import org.jspecify.annotations.Nullable;
 @Table(
     name = "WorkCenter",
     indexes = {
-      @Index(name = "IX_WorkCenter_Type", columnList = "Type"),
-      @Index(name = "IX_WorkCenter_Code", columnList = "Code"),
       @Index(name = "IX_WorkCenter_Name", columnList = "Name"),
       @Index(name = "IX_WorkCenter_Disabled", columnList = "Disabled")
-      // 注意：Code 的过滤唯一索引带 WHERE IsDeleted=0，JPA 不支持，用 Flyway 创建
     })
 public class WorkCenter extends UpdateAggregateRoot {
-
-  /** 类型编码，取值见 {@link WorkCenterTypeEnum}：设备按台数算产能，班组按人数算 */
-  @Nationalized
-  @Column(name = "Type", nullable = false, length = 50)
-  private String type;
-
-  /** 代码 */
-  @Nationalized
-  @Column(name = "Code", nullable = false, length = 100)
-  private String code;
 
   /** 名称 */
   @Nationalized
@@ -80,6 +67,25 @@ public class WorkCenter extends UpdateAggregateRoot {
   @Column(name = "CleanupTime", nullable = false, precision = 18, scale = 2)
   private BigDecimal cleanupTime;
 
+  /** 默认产能（这台中心同时能容的工位数/人数，照 Odoo 的 default_capacity） */
+  @Column(name = "DefaultCapacity", nullable = false)
+  private Integer defaultCapacity;
+
+  /** 默认发料仓库Id（可空，照 Odoo 的 default_location_src_id：挂这条线的工序领料默认从这发） */
+  @Column(name = "SourceWarehouseId")
+  @Nullable
+  private Long sourceWarehouseId;
+
+  /** 默认收货仓库Id（可空，照 Odoo 的 default_location_dest_id：这道工序的产出默认进这） */
+  @Column(name = "DestWarehouseId")
+  @Nullable
+  private Long destWarehouseId;
+
+  /** 实时状态编码，取值见 {@link WorkCenterWorkingStateEnum}（车间现场改，排产只读） */
+  @Nationalized
+  @Column(name = "WorkingState", nullable = false, length = 50)
+  private String workingState;
+
   /** 是否停用 */
   @Column(name = "Disabled", nullable = false)
   private Boolean disabled;
@@ -97,8 +103,6 @@ public class WorkCenter extends UpdateAggregateRoot {
   /**
    * 构造器
    *
-   * @param type 类型编码
-   * @param code 代码
    * @param name 名称
    * @param workCalendarId 工作日历Id
    * @param efficiency 效率（百分比）
@@ -106,13 +110,15 @@ public class WorkCenter extends UpdateAggregateRoot {
    * @param currencyId 小时费率的币种Id
    * @param setupTime 准备时间（分钟）
    * @param cleanupTime 清理时间（分钟）
+   * @param defaultCapacity 默认产能
+   * @param sourceWarehouseId 默认发料仓库Id（可空）
+   * @param destWarehouseId 默认收货仓库Id（可空）
+   * @param workingState 实时状态编码
    * @param disabled 是否停用
    * @param sequence 排序
    * @param remark 备注（可空）
    */
   WorkCenter(
-      String type,
-      String code,
       String name,
       long workCalendarId,
       BigDecimal efficiency,
@@ -120,12 +126,14 @@ public class WorkCenter extends UpdateAggregateRoot {
       long currencyId,
       BigDecimal setupTime,
       BigDecimal cleanupTime,
+      int defaultCapacity,
+      @Nullable Long sourceWarehouseId,
+      @Nullable Long destWarehouseId,
+      String workingState,
       boolean disabled,
       int sequence,
       @Nullable String remark) {
     apply(
-        type,
-        code,
         name,
         workCalendarId,
         efficiency,
@@ -133,6 +141,10 @@ public class WorkCenter extends UpdateAggregateRoot {
         currencyId,
         setupTime,
         cleanupTime,
+        defaultCapacity,
+        sourceWarehouseId,
+        destWarehouseId,
+        workingState,
         disabled,
         sequence,
         remark);
@@ -141,8 +153,6 @@ public class WorkCenter extends UpdateAggregateRoot {
   /**
    * 修改工作中心
    *
-   * @param type 类型编码
-   * @param code 代码
    * @param name 名称
    * @param workCalendarId 工作日历Id
    * @param efficiency 效率（百分比）
@@ -150,13 +160,15 @@ public class WorkCenter extends UpdateAggregateRoot {
    * @param currencyId 小时费率的币种Id
    * @param setupTime 准备时间（分钟）
    * @param cleanupTime 清理时间（分钟）
+   * @param defaultCapacity 默认产能
+   * @param sourceWarehouseId 默认发料仓库Id（可空）
+   * @param destWarehouseId 默认收货仓库Id（可空）
+   * @param workingState 实时状态编码
    * @param disabled 是否停用
    * @param sequence 排序
    * @param remark 备注（可空）
    */
   void modify(
-      String type,
-      String code,
       String name,
       long workCalendarId,
       BigDecimal efficiency,
@@ -164,12 +176,14 @@ public class WorkCenter extends UpdateAggregateRoot {
       long currencyId,
       BigDecimal setupTime,
       BigDecimal cleanupTime,
+      int defaultCapacity,
+      @Nullable Long sourceWarehouseId,
+      @Nullable Long destWarehouseId,
+      String workingState,
       boolean disabled,
       int sequence,
       @Nullable String remark) {
     apply(
-        type,
-        code,
         name,
         workCalendarId,
         efficiency,
@@ -177,6 +191,10 @@ public class WorkCenter extends UpdateAggregateRoot {
         currencyId,
         setupTime,
         cleanupTime,
+        defaultCapacity,
+        sourceWarehouseId,
+        destWarehouseId,
+        workingState,
         disabled,
         sequence,
         remark);
@@ -189,8 +207,6 @@ public class WorkCenter extends UpdateAggregateRoot {
    *
    * <p>把「去空格 → 非空校验 → 数值非负校验 → 赋值」收敛到一处，避免构造器和 {@link #modify} 各写一遍导致规则漂移。
    *
-   * @param type 类型编码
-   * @param code 代码
    * @param name 名称
    * @param workCalendarId 工作日历Id
    * @param efficiency 效率（百分比）
@@ -198,14 +214,16 @@ public class WorkCenter extends UpdateAggregateRoot {
    * @param currencyId 小时费率的币种Id
    * @param setupTime 准备时间（分钟）
    * @param cleanupTime 清理时间（分钟）
+   * @param defaultCapacity 默认产能
+   * @param sourceWarehouseId 默认发料仓库Id（可空）
+   * @param destWarehouseId 默认收货仓库Id（可空）
+   * @param workingState 实时状态编码
    * @param disabled 是否停用
    * @param sequence 排序
    * @param remark 备注（可空）
-   * @throws DomainException 代码/名称为空、类型非法、排序非正、效率非正、费率或工时为负、日历为空时抛出
+   * @throws DomainException 名称为空、产能非正、仓库Id非法、排序非正、效率非正、费率或工时为负、日历为空时抛出
    */
   private void apply(
-      String type,
-      String code,
       String name,
       long workCalendarId,
       BigDecimal efficiency,
@@ -213,18 +231,31 @@ public class WorkCenter extends UpdateAggregateRoot {
       long currencyId,
       BigDecimal setupTime,
       BigDecimal cleanupTime,
+      int defaultCapacity,
+      @Nullable Long sourceWarehouseId,
+      @Nullable Long destWarehouseId,
+      String workingState,
       boolean disabled,
       int sequence,
       @Nullable String remark) {
-    String trimmedCode = StringUtils.trimToNull(code);
     String trimmedName = StringUtils.trimToNull(name);
-    if (trimmedCode == null) {
-      throw new DomainException("工作中心代码不能为空");
-    }
     if (trimmedName == null) {
       throw new DomainException("工作中心名称不能为空");
     }
-    this.type = EnumUtils.getCode(WorkCenterTypeEnum.class, type, "工作中心类型");
+    String trimmedWorkingState = StringUtils.trimToNull(workingState);
+    if (trimmedWorkingState == null) {
+      throw new DomainException("实时状态不能为空");
+    }
+    String validWorkingState = EnumUtils.getCode(WorkCenterWorkingStateEnum.class, trimmedWorkingState, "实时状态");
+    if (defaultCapacity <= 0) {
+      throw new DomainException("默认产能必须大于0");
+    }
+    if (sourceWarehouseId != null && sourceWarehouseId <= 0) {
+      throw new DomainException("默认发料仓库Id有误!");
+    }
+    if (destWarehouseId != null && destWarehouseId <= 0) {
+      throw new DomainException("默认收货仓库Id有误!");
+    }
     if (sequence <= 0) {
       throw new DomainException("排序必须大于0");
     }
@@ -247,7 +278,6 @@ public class WorkCenter extends UpdateAggregateRoot {
       throw new DomainException("工作日历不能为空");
     }
 
-    this.code = trimmedCode;
     this.name = trimmedName;
     this.workCalendarId = workCalendarId;
     this.efficiency = efficiency;
@@ -255,6 +285,10 @@ public class WorkCenter extends UpdateAggregateRoot {
     this.currencyId = currencyId;
     this.setupTime = setupTime;
     this.cleanupTime = cleanupTime;
+    this.defaultCapacity = defaultCapacity;
+    this.sourceWarehouseId = sourceWarehouseId;
+    this.destWarehouseId = destWarehouseId;
+    this.workingState = validWorkingState;
     this.disabled = disabled;
     this.sequence = sequence;
     this.remark = remark;

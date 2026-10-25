@@ -1,8 +1,8 @@
 package com.rongia.system.domain.attribute;
 
+import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
 import com.rongia.shared.domain.enums.DataTypeEnum;
 import com.rongia.shared.domain.enums.InputTypeEnum;
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
 import com.rongia.shared.domain.exception.DomainException;
 import com.rongia.shared.domain.util.EnumUtils;
 import jakarta.persistence.CascadeType;
@@ -35,16 +35,14 @@ import org.jspecify.annotations.Nullable;
  * 属性（属性的定义，不是某个对象上填的值）
  *
  * <p>与 {@code com.rongia.basedata.domain.specattribute.SpecAttribute} 同形
- * （代码、名称、数据类型、输入类型、候选值、校验规则），但用途不同：规格属性是「拿来做规格维度、
- * 参与 SKU 生成」的那一组定义，挂在分类下；属性是「挂在某类对象上的描述性取值」，挂在持有者类型上
- * （{@code EntityType} 存表名，如
- * {@code Material} / {@code Variant}），不参与规格身份。理由：一个「重量」属性对成品和辅料写法一样，按分类配
- * 就得每个分类重复配一遍；而哪些对象能挂属性是结构问题，跟物料归哪类无关。填到对象上的值另存通用赋值表
- * {@link AttributeAssignment}（同样是 {@code EntityType} + {@code EntityId}），相当于 SAP 把
- * {@code CABN}（定义）与 {@code AUSP}（赋值，带 {@code OBJ_TYPE} + {@code OBJ_ID}）分在两张表。
+ * （代码、名称、数据类型、输入类型、候选值、校验规则），但用途不同：规格属性是「拿来做规格维度、 参与 SKU
+ * 生成」的那一组定义，挂在分类下；属性是「挂在某类对象上的描述性取值」，挂在持有者类型上 （{@code EntityType} 存表名，如 {@code Material} / {@code
+ * Variant}），不参与规格身份。理由：一个「重量」属性对成品和辅料写法一样，按分类配 就得每个分类重复配一遍；而哪些对象能挂属性是结构问题，跟物料归哪类无关。填到对象上的值另存通用赋值表
+ * {@link AttributeAssignment}（同样是 {@code EntityType} + {@code EntityId}），相当于 SAP 把 {@code
+ * CABN}（定义）与 {@code AUSP}（赋值，带 {@code OBJ_TYPE} + {@code OBJ_ID}）分在两张表。
  *
- * <p>候选值（{@link AttributeValue}）一旦维护了就变成硬约束：填的值必须是其中之一，否则同一个
- * 「颜色」在十个物料上能写出十种写法；没有候选值时只按 {@code DataType} 校验。
+ * <p>候选值（{@link AttributeValue}）一旦维护了就变成硬约束：填的值必须是其中之一，否则同一个 「颜色」在十个物料上能写出十种写法；没有候选值时只按 {@code
+ * DataType} 校验。
  */
 @NullMarked
 @Getter
@@ -94,9 +92,8 @@ public class Attribute extends UpdateAggregateRoot {
   /**
    * 是否作为筛选项（列表页可以按这个属性过滤，取值仍走 {@link AttributeAssignment}）
    *
-   * <p>标在定义上而不是让每个页面自己记：ERPNext 的字段元数据带 {@code in_list_filter} /
-   * {@code in_standard_filter}，金蝶云星空的自定义字段也自带「可过滤」设置，筛选项跟着定义走，
-   * 新增一个持有者不必再配一遍。
+   * <p>标在定义上而不是让每个页面自己记：ERPNext 的字段元数据带 {@code in_list_filter} / {@code
+   * in_standard_filter}，金蝶云星空的自定义字段也自带「可过滤」设置，筛选项跟着定义走， 新增一个持有者不必再配一遍。
    */
   @Column(name = "IsFilter", nullable = false)
   private Boolean isFilter;
@@ -221,7 +218,8 @@ public class Attribute extends UpdateAggregateRoot {
    * @param sequence 排序（可空）
    * @throws DomainException 属性值不存在时抛出
    */
-  public void modifyValue(long valueId, String label, boolean isDefault, @Nullable Integer sequence) {
+  public void modifyValue(
+      long valueId, String label, boolean isDefault, @Nullable Integer sequence) {
     AttributeValue attributeValue = findValue(valueId);
     if (attributeValue == null) {
       throw new DomainException("属性" + this.label + ":属性值不存在!");
@@ -272,14 +270,13 @@ public class Attribute extends UpdateAggregateRoot {
   /**
    * 必填校验：标了必填的属性必须拿到至少一个值
    *
-   * <p>只在「这一笔调用确实在设置属性值」的路径上调用（创建、修改、导入）；只生成规格组合、
-   * 不碰属性值的路径不拦，否则生成 SKU 会被一堆没填的属性挡住。
+   * <p>只在「这一笔调用确实在设置属性值」的路径上调用（创建、修改、导入）；只生成规格组合、 不碰属性值的路径不拦，否则生成 SKU 会被一堆没填的属性挡住。
    *
    * @param values 该属性拿到的值（可空）
    * @throws DomainException 必填却没给值时抛出
    */
   public void validateFilled(@Nullable List<String> values) {
-    if (Boolean.TRUE.equals(isRequired) && (values == null || values.isEmpty())) {
+    if (isRequired && (values == null || values.isEmpty())) {
       throw new DomainException("属性" + label + "必填!");
     }
   }

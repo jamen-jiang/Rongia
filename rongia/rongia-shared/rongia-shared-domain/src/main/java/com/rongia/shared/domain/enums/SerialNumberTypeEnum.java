@@ -23,20 +23,8 @@ public enum SerialNumberTypeEnum implements BaseEnum {
   /** 生产报工单 */
   PRODUCTION_REPORT("ProductionReport", "生产报工单"),
 
-  /** 生产领料单 */
-  PRODUCTION_ISSUE("ProductionIssue", "生产领料单"),
-
-  /** 生产退料单 */
-  PRODUCTION_RETURN("ProductionReturn", "生产退料单"),
-
-  /** 生产入库单 */
-  PRODUCTION_RECEIPT("ProductionReceipt", "生产入库单"),
-
-  /** 库存记录（一次库存动账，红字单也用这一段号） */
-  STOCK_RECORD("StockRecord", "库存记录"),
-
-  /** 库存状态转换单（待检放行、报废、冻结、解冻共用这一段号） */
-  STOCK_STATUS_CHANGE("StockStatusChange", "库存状态转换单");
+  /** 库存单据（通用出入库单，红字单也用这一段号） */
+  STOCK_ENTRY("StockEntry", "库存单据");
 
   /** 编码 */
   private final String code;

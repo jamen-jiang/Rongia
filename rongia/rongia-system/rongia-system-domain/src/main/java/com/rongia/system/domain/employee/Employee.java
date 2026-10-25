@@ -502,9 +502,6 @@ public class Employee extends UpdateAggregateRoot {
     if (departmentId <= 0) {
       throw new DomainException("员工所属部门不能为空");
     }
-    if (joinDate == null) {
-      throw new DomainException("员工入职日期不能为空");
-    }
     this.type = EnumUtils.getCode(EmployeeTypeEnum.class, type, "员工" + trimmedNumber + "的用工类型");
     if (gender != null) {
       this.gender = EnumUtils.getCode(GenderEnum.class, gender, "员工" + trimmedNumber + "的性别");

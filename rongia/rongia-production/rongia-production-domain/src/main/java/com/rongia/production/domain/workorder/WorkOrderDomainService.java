@@ -90,9 +90,14 @@ public class WorkOrderDomainService {
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param planQty 计划数量
+   * @param startTime 开工时间（可空，排产时填计划，照 Odoo 的 date_start 语义）
    * @param unitId 单位Id
-   * @param warehouseId 仓库Id（可空，完工入库单没指定仓库时的默认收货仓）
+   * @param pickingTypeId 操作类型Id
+   * @param srcWarehouseId 发料仓库Id
+   * @param destWarehouseId 成品收货仓库Id
+   * @param finalWarehouseId 最终仓库Id（可空）
+   * @param productionWarehouseId 生产仓库Id（可空）
+
    * @param remark 备注（可空）
    * @return 工单聚合
    */
@@ -100,28 +105,40 @@ public class WorkOrderDomainService {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
+      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
-      BigDecimal planQty,
+      @Nullable LocalDateTime startTime,
+      BigDecimal qty,
       long unitId,
-      @Nullable Long warehouseId,
+      long pickingTypeId,
+      long srcWarehouseId,
+      long destWarehouseId,
+      @Nullable Long finalWarehouseId,
+      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return workOrderFactory.create(
         sourceType,
         sourceId,
         sourceNumber,
+        priority,
         bomId,
         routingId,
         materialId,
         variantId,
         deliveryTime,
-        planQty,
+        startTime,
+        qty,
         unitId,
-        warehouseId,
+        pickingTypeId,
+        srcWarehouseId,
+        destWarehouseId,
+        finalWarehouseId,
+        productionWarehouseId,
         remark,
         "");
   }
@@ -138,9 +155,14 @@ public class WorkOrderDomainService {
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param planQty 计划数量
+   * @param qty 计划数量
    * @param unitId 单位Id
-   * @param warehouseId 仓库Id（可空，完工入库单没指定仓库时的默认收货仓）
+   * @param pickingTypeId 操作类型Id
+   * @param srcWarehouseId 发料仓库Id
+   * @param destWarehouseId 成品收货仓库Id
+   * @param finalWarehouseId 最终仓库Id（可空）
+   * @param productionWarehouseId 生产仓库Id（可空）
+
    * @param remark 备注（可空）
    * @return 工单聚合
    * @throws DomainException 工单不存在、非草稿状态时抛出
@@ -150,28 +172,40 @@ public class WorkOrderDomainService {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
+      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
-      BigDecimal planQty,
+      @Nullable LocalDateTime startTime,
+      BigDecimal qty,
       long unitId,
-      @Nullable Long warehouseId,
+      long pickingTypeId,
+      long srcWarehouseId,
+      long destWarehouseId,
+      @Nullable Long finalWarehouseId,
+      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     WorkOrder model = getExist(id);
     model.modify(
         sourceType,
         sourceId,
         sourceNumber,
+        priority,
         bomId,
         routingId,
         materialId,
         variantId,
         deliveryTime,
-        planQty,
+        startTime,
+        qty,
         unitId,
-        warehouseId,
+        pickingTypeId,
+        srcWarehouseId,
+        destWarehouseId,
+        finalWarehouseId,
+        productionWarehouseId,
         remark);
     return model;
   }
@@ -224,7 +258,7 @@ public class WorkOrderDomainService {
 
     // 3. 先全量校验外部引用，确认能装配再动手
     List<OperationSnapshot> snapshots = resolveOperations(routing);
-    List<MaterialRequirement> requirements = resolveMaterials(model.getPlanQty(), bom);
+    List<MaterialRequirement> requirements = resolveMaterials(model.getQty(), bom);
 
     // 4. 一次性装配并固化
     for (OperationSnapshot snapshot : snapshots) {
@@ -246,7 +280,35 @@ public class WorkOrderDomainService {
           requirement.unitId());
     }
     model.release(bom == null ? null : bom.getId(), routing.getId());
+    scheduleOperations(model);
     return model;
+  }
+
+  /**
+   * 排产：按工序周期链正向铺计划时间
+   *
+   * <p>工单头上有开工时间就从它起铺，没有则不铺（排产由车间之后手工补）。铺法照 ERPNext 的
+   * planned_start_time / planned_end_time：首道开工 = 工单开工时间，每道完工 = 开工 + 周期时间 × 计划数量，
+   * 下一道开工 = 上一道完工——线性流水，不排并行。
+   *
+   * @param model 已下达的工单
+   */
+  private void scheduleOperations(WorkOrder model) {
+    LocalDateTime cursor = model.getStartTime();
+    if (cursor == null) {
+      return;
+    }
+    for (WorkOrderOperation operation : model.getWorkOrderOperations()) {
+      if (operation.isSkipped()) {
+        continue;
+      }
+      LocalDateTime end =
+          cursor.plusMinutes(
+              operation.estimatedMinutes(model.getQty()).longValue());
+      operation.schedule(cursor, end);
+      cursor = end;
+    }
+    model.fillEndTime(cursor);
   }
 
   /**

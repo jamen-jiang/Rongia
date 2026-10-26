@@ -1,8 +1,7 @@
-package com.rongia.production.domain.bomoperation;
+package com.rongia.production.domain.routing;
 
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
+import com.rongia.shared.domain.entity.BaseDeleteEntity;
 import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
@@ -15,12 +14,14 @@ import lombok.Setter;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * 工序行（BOM 或路线的子行，照 ERPNext 的 BOM Operation）
+ * 路线工序（工艺路线上的一道工序）
  *
- * <p>同一张表被两个父级共用：{@code ParentType} 区分挂在 BOM 上还是路线上，{@code ParentId} 指向那个父级的 Id。
- * 描述「这道工序在这个物料上怎么做」：顺序、工作中心、工时与批量。工序本身是什么由 {@code Operation} 定义，这里只引用它的 Id。
+ * <p>描述「这道工序在这条路线上怎么做」：顺序、工作中心、工时与批量。工序本身是什么由 {@code Operation}
+ * 定义，这里只引用它的 Id，并在建行时把工序字典与工作中心上的默认值抄一份——之后路线自己说了算，
+ * 工序字典改默认值不影响已有路线。
  *
- * <p>它是独立聚合而不是子表：一份 BOM 或一条路线改工序时，不必把整头连同全部工序读进来再整体保存。
+ * <p>它是路线的子行：一份配方要做不同工序，就配一条不同的路线；BOM 通过 {@code routingId} 挑路线，
+ * 用料行通过 {@code routingOperationId} 指到「消耗在哪道工序」。
  */
 @NullMarked
 @Getter
@@ -28,23 +29,19 @@ import org.jspecify.annotations.NullMarked;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
-    name = "BomOperation",
+    name = "RoutingOperation",
     indexes = {
-      @Index(name = "IX_BomOperation_Parent", columnList = "ParentType,ParentId"),
-      @Index(name = "IX_BomOperation_OperationId", columnList = "OperationId"),
-      @Index(name = "IX_BomOperation_WorkCenterId", columnList = "WorkCenterId"),
-      @Index(name = "IX_BomOperation_Sequence", columnList = "Sequence")
-      // 注意：ParentType + ParentId + Sequence 的过滤唯一索引带 WHERE IsDeleted=0，JPA 不支持，用 Flyway 创建
+      @Index(name = "IX_RoutingOperation_RoutingId", columnList = "RoutingId"),
+      @Index(name = "IX_RoutingOperation_OperationId", columnList = "OperationId"),
+      @Index(name = "IX_RoutingOperation_WorkCenterId", columnList = "WorkCenterId"),
+      @Index(name = "IX_RoutingOperation_Sequence", columnList = "Sequence")
+      // 注意：RoutingId + Sequence 的过滤唯一索引带 WHERE IsDeleted=0，JPA 不支持，用 Flyway 创建
     })
-public class BomOperation extends UpdateAggregateRoot {
+public class RoutingOperation extends BaseDeleteEntity {
 
-  /** 父级类型编码，取值见 {@link BomOperationParentTypeEnum} */
-  @Column(name = "ParentType", nullable = false, length = 50)
-  private String parentType;
-
-  /** 父级Id：按 ParentType 指向 Bom 或 Routing */
-  @Column(name = "ParentId", nullable = false)
-  private Long parentId;
+  /** 工艺路线Id */
+  @Column(name = "RoutingId")
+  private Long routingId;
 
   /** 工序Id */
   @Column(name = "OperationId", nullable = false)
@@ -62,7 +59,7 @@ public class BomOperation extends UpdateAggregateRoot {
   @Column(name = "BatchSize", nullable = false, precision = 18, scale = 2)
   private BigDecimal batchSize;
 
-  /** 小时费率（元/小时，照 ERPNext 的 hour_rate）：建行时从工作中心带出来，之后可按这条行改 */
+  /** 小时费率（元/小时）：建行时从工作中心带出来，之后可按这条行改 */
   @Column(name = "HourlyRate", nullable = false, precision = 18, scale = 2)
   private BigDecimal hourlyRate;
 
@@ -73,8 +70,6 @@ public class BomOperation extends UpdateAggregateRoot {
   /**
    * 构造器
    *
-   * @param parentType 父级类型编码
-   * @param parentId 父级Id
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
    * @param cycleTime 周期时间（分钟）
@@ -82,28 +77,18 @@ public class BomOperation extends UpdateAggregateRoot {
    * @param hourlyRate 小时费率（元/小时）
    * @param sequence 工序顺序
    */
-  BomOperation(
-      String parentType,
-      long parentId,
+  RoutingOperation(
       long operationId,
       long workCenterId,
       BigDecimal cycleTime,
       BigDecimal batchSize,
       BigDecimal hourlyRate,
       int sequence) {
-    apply(
-        parentType,
-        parentId,
-        operationId,
-        workCenterId,
-        cycleTime,
-        batchSize,
-        hourlyRate,
-        sequence);
+    apply(operationId, workCenterId, cycleTime, batchSize, hourlyRate, sequence);
   }
 
   /**
-   * 修改工序行
+   * 修改路线工序
    *
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
@@ -119,15 +104,7 @@ public class BomOperation extends UpdateAggregateRoot {
       BigDecimal batchSize,
       BigDecimal hourlyRate,
       int sequence) {
-    apply(
-        parentType,
-        parentId,
-        operationId,
-        workCenterId,
-        cycleTime,
-        batchSize,
-        hourlyRate,
-        sequence);
+    apply(operationId, workCenterId, cycleTime, batchSize, hourlyRate, sequence);
   }
 
   // ==================== 私有：校验与赋值 ====================
@@ -135,32 +112,21 @@ public class BomOperation extends UpdateAggregateRoot {
   /**
    * 统一的校验与赋值入口（构造器与修改共用）
    *
-   * <p>把「父级/主键/顺序校验 → 数值非负校验 → 赋值」收敛到一处，避免构造器和 {@link #modify} 各写一遍导致规则漂移。
-   *
-   * @param parentType 父级类型编码
-   * @param parentId 父级Id
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
    * @param cycleTime 周期时间（分钟）
    * @param batchSize 批量大小（件）
    * @param hourlyRate 小时费率（元/小时）
    * @param sequence 工序顺序
-   * @throws DomainException 父级、工序、工作中心、顺序、工时、批量或费率非法时抛出
+   * @throws DomainException 工序、工作中心、顺序、工时、批量或费率非法时抛出
    */
   private void apply(
-      String parentType,
-      long parentId,
       long operationId,
       long workCenterId,
       BigDecimal cycleTime,
       BigDecimal batchSize,
       BigDecimal hourlyRate,
       int sequence) {
-    String validParentType =
-        EnumUtils.getCode(BomOperationParentTypeEnum.class, parentType, "父级类型");
-    if (parentId <= 0) {
-      throw new DomainException("父级不能为空");
-    }
     if (sequence <= 0) {
       throw new DomainException("工序顺序必须大于0");
     }
@@ -174,8 +140,6 @@ public class BomOperation extends UpdateAggregateRoot {
     validateNonNegative("批量大小", batchSize);
     validateNonNegative("小时费率", hourlyRate);
 
-    this.parentType = validParentType;
-    this.parentId = parentId;
     this.operationId = operationId;
     this.workCenterId = workCenterId;
     this.cycleTime = cycleTime;

@@ -1,4 +1,4 @@
-package com.rongia.production.domain.productionreport;
+package com.rongia.production.domain.workordertracking;
 
 import com.rongia.production.domain.workorder.WorkOrder;
 import com.rongia.production.domain.workorder.WorkOrderOperation;
@@ -12,7 +12,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 生产报工单领域服务
+ * 工单跟踪（报工单）领域服务
  *
  * <p>报工要同时动两个聚合：报工单落账，工单工序累加良品/报废/工时。这是跨聚合的一致性动作，所以放在
  * 领域服务里编排，而不是让报工单去反向修改工单。
@@ -24,16 +24,16 @@ import org.jspecify.annotations.Nullable;
  * 这些快照由本服务从工单上抄下来，操作人沿用工序开工时记的那位，工时不填就按工序标准时间算。
  */
 @NullMarked
-public class ProductionReportDomainService {
+public class WorkOrderTrackingDomainService {
 
   /** 工时保留位数，与时间列 decimal(18, 2) 对齐 */
   private static final int MINUTE_SCALE = 2;
 
   /** 报工单工厂 */
-  private final ProductionReportFactory productionReportFactory;
+  private final WorkOrderTrackingFactory trackingFactory;
 
   /** 报工单仓储 */
-  private final ProductionReportRepository productionReportRepository;
+  private final WorkOrderTrackingRepository trackingRepository;
 
   /** 工单仓储 */
   private final WorkOrderRepository workOrderRepository;
@@ -41,16 +41,16 @@ public class ProductionReportDomainService {
   /**
    * 构造器注入
    *
-   * @param productionReportFactory 报工单工厂
-   * @param productionReportRepository 报工单仓储
+   * @param trackingFactory 报工单工厂
+   * @param trackingRepository 报工单仓储
    * @param workOrderRepository 工单仓储
    */
-  public ProductionReportDomainService(
-      ProductionReportFactory productionReportFactory,
-      ProductionReportRepository productionReportRepository,
+  public WorkOrderTrackingDomainService(
+      WorkOrderTrackingFactory trackingFactory,
+      WorkOrderTrackingRepository trackingRepository,
       WorkOrderRepository workOrderRepository) {
-    this.productionReportFactory = productionReportFactory;
-    this.productionReportRepository = productionReportRepository;
+    this.trackingFactory = trackingFactory;
+    this.trackingRepository = trackingRepository;
     this.workOrderRepository = workOrderRepository;
   }
 
@@ -68,7 +68,7 @@ public class ProductionReportDomainService {
    * @return 报工单聚合
    * @throws DomainException 工单或工序行不存在、工序未开工、报工数超过投入数、或按批取时却没有标准批量时抛出
    */
-  public ProductionReport create(
+  public WorkOrderTracking create(
       long workOrderId,
       long workOrderOperationId,
       BigDecimal goodQty,
@@ -85,8 +85,7 @@ public class ProductionReportDomainService {
         operation.getId(),
         operation.getProducedQty().add(goodQty),
         operation.getActualCycleTime().add(minutes));
-    // 传空串：单号交给 OrderAddedEvent 的监听器分配
-    return productionReportFactory.create(
+    return trackingFactory.create(
         workOrder.getId(),
         workOrder.getNumber(),
         operation.getId(),
@@ -98,8 +97,7 @@ public class ProductionReportDomainService {
         minutes,
         goodQty,
         lossQty,
-        remark,
-        "");
+        remark);
   }
 
   /**
@@ -115,10 +113,10 @@ public class ProductionReportDomainService {
    * @return 报工单聚合（已作废）
    * @throws DomainException 报工单或工单不存在、已作废、后续工序已开工、或工单侧校验不过时抛出
    */
-  public ProductionReport voidReport(long id, LocalDateTime moment) {
-    ProductionReport model = getExist(id);
+  public WorkOrderTracking voidReport(long id, LocalDateTime moment) {
+    WorkOrderTracking model = getExist(id);
     if (model.isVoided()) {
-      throw new DomainException("报工单" + model.getNumber() + "已作废，不能重复作废");
+      throw new DomainException("该报工记录已作废，不能重复作废");
     }
 
     WorkOrder workOrder = requireWorkOrder(model.getWorkOrderId());
@@ -164,9 +162,9 @@ public class ProductionReportDomainService {
    * @param workOrderId 工单Id
    * @return 未作废的报工单列表
    */
-  public List<ProductionReport> getEffectiveByWorkOrderId(long workOrderId) {
-    return productionReportRepository.getListByWorkOrderId(workOrderId).stream()
-        .filter(ProductionReport::isEffective)
+  public List<WorkOrderTracking> getEffectiveByWorkOrderId(long workOrderId) {
+    return trackingRepository.getListByWorkOrderId(workOrderId).stream()
+        .filter(WorkOrderTracking::isEffective)
         .toList();
   }
 
@@ -243,8 +241,8 @@ public class ProductionReportDomainService {
    * @return 报工单聚合
    * @throws DomainException 报工单不存在时抛出
    */
-  private ProductionReport getExist(long id) {
-    ProductionReport model = productionReportRepository.get(id);
+  private WorkOrderTracking getExist(long id) {
+    WorkOrderTracking model = trackingRepository.get(id);
     if (model == null) {
       throw new DomainException("报工单" + id + "不存在!");
     }

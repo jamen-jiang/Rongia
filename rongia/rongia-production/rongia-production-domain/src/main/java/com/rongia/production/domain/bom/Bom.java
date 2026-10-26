@@ -32,10 +32,9 @@ import org.jspecify.annotations.Nullable;
  * <p>父件与子件都是 SKU，所以 BOM 本质是 SKU 对 SKU 的自关联：成品、毛坯、靶材、包装袋都挂在同一张 Variant 表上，谁有 BOM 谁就能被展开。多层 BOM
  * 不需要额外字段——毛坯 SKU 自己再有一份 BOM 就是三层。
  *
- * <p>同一父件可以挂多条 BOM，靠版本号区分：版本号是配方自己的标识，升版就换一个号，历史工单回溯时按
- * 「父件SKU + 版本号」定位到当时那一份。{@code disabled} 只表示停用（不再进工单选择），与版本无关；
- * 停用的版本照样留着，因为按它下达过的工单还要能连回来。工单下达时取未停用的那一条，并把用到的表头与
- * 用料行快照进工单，之后 BOM 怎么改都不影响在制工单。
+ * <p>同一父件可以挂多条 BOM：多条并存时（普通工艺/快交工艺）靠 {@code isDefault} 指定工单下达默认用哪张，
+ * 没有默认的下达时由人挑。{@code disabled} 表示停用（不再进工单选择）；停用的照样留着，因为按它下达过的
+ * 工单还要能连回来。工单下达时把用到的表头与用料行快照进工单，之后 BOM 怎么改都不影响在制工单。
  *
  * <p>产出批量：{@code qty} + {@code unitId} 说明这份配方是按「产出这么多父件」定义的，用料行里的
  * 单位用量都是这一批量下的量（照 Odoo 的 {@code product_qty}/{@code product_uom_id}、ERPNext 的
@@ -56,7 +55,6 @@ import org.jspecify.annotations.Nullable;
       @Index(name = "IX_Bom_VariantId", columnList = "VariantId"),
       @Index(name = "IX_Bom_Code", columnList = "Code"),
       @Index(name = "IX_Bom_Type", columnList = "Type")
-      // 注意：VariantId + Version 的过滤唯一索引带 WHERE IsDeleted=0，JPA 不支持，用 Flyway 创建
     })
 public class Bom extends UpdateAggregateRoot {
 
@@ -70,11 +68,6 @@ public class Bom extends UpdateAggregateRoot {
   @Column(name = "Code", length = 100)
   @Nullable
   private String code;
-
-  /** 版本号：与父件SKU共同构成唯一键，升版就是换一个号 */
-  @Nationalized
-  @Column(name = "Version", nullable = false, length = 50)
-  private String version;
 
   /** 父件SPU（按系列查 BOM 用） */
   @Column(name = "MaterialId", nullable = false)
@@ -98,36 +91,9 @@ public class Bom extends UpdateAggregateRoot {
   @Column(name = "UnitId", nullable = false)
   private Long unitId;
 
-  /** 开工方式编码，取值见 {@link BomStartModeEnum} */
-  @Nationalized
-  @Column(name = "StartMode", nullable = false, length = 50)
-  private String startMode;
-
-  /** 领料方式编码，取值见 {@link BomIssueModeEnum} */
-  @Nationalized
-  @Column(name = "IssueMode", nullable = false, length = 50)
-  private String issueMode;
-
-  /**
-   * 制造天数：从下达工单那天算起，把货做出来平均要多少天。
-   *
-   * <p>排产时「最晚哪天下单」就按它倒推：想要 20 号交货、做要 5 天，19 号之后下单就来不及了。
-   */
-  @Column(name = "LeadDays", nullable = false)
-  private Integer leadDays = 0;
-
-  /**
-   * 备料天数：比开工日再往前推这么多天，先把工单建出来、把料备齐。
-   *
-   * <p>料没到位机器开不了——做要 5 天、料还得 3 天，那就提前 3 天建单领料，别等到开工那天才发现料没到。
-   */
-  @Column(name = "PrepareDays", nullable = false)
-  private Integer prepareDays = 0;
-
-  /** 自动生成工单的批量（可空，空表示不按批量；照 Odoo 的 batch_size） */
-  @Column(name = "BatchSize", precision = 18, scale = 2)
-  @Nullable
-  private BigDecimal batchSize;
+  /** 是否默认：同一父件有多张 BOM 时，工单下达不带 BOM 就默认用这张 */
+  @Column(name = "IsDefault", nullable = false)
+  private Boolean isDefault = false;
 
   /** 是否禁用：禁用后下达工单不再选它，已按它下达的工单不受影响 */
   @Column(name = "Disabled", nullable = false)
@@ -162,51 +128,36 @@ public class Bom extends UpdateAggregateRoot {
    *
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数：从下达算起把货做出来平均要多少天
-   * @param prepareDays 备料天数：比开工日再往前推这么多天建单备料
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
    */
   Bom(
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     apply(
         type,
         code,
-        version,
         materialId,
         variantId,
         routingId,
         qty,
         unitId,
-        startMode,
-        issueMode,
-        leadDays,
-        prepareDays,
-        batchSize,
         disabled,
+        isDefault,
         remark);
   }
 
@@ -215,51 +166,36 @@ public class Bom extends UpdateAggregateRoot {
    *
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数：从下达算起把货做出来平均要多少天
-   * @param prepareDays 备料天数：比开工日再往前推这么多天建单备料
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
    */
   void modify(
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     apply(
         type,
         code,
-        version,
         materialId,
         variantId,
         routingId,
         qty,
         unitId,
-        startMode,
-        issueMode,
-        leadDays,
-        prepareDays,
-        batchSize,
         disabled,
+        isDefault,
         remark);
   }
 
@@ -268,7 +204,7 @@ public class Bom extends UpdateAggregateRoot {
    *
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param bomOperationId 消耗的工序行Id（可空）
+   * @param routingOperationId 消耗的路线工序Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -278,7 +214,7 @@ public class Bom extends UpdateAggregateRoot {
   public void addLine(
       long materialId,
       long variantId,
-      @Nullable Long bomOperationId,
+      @Nullable Long routingOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
@@ -290,7 +226,7 @@ public class Bom extends UpdateAggregateRoot {
       throw new DomainException("子件已存在于当前 BOM 中!");
     }
     bomLines.add(
-        new BomLine(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence));
+        new BomLine(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence));
   }
 
   /**
@@ -299,7 +235,7 @@ public class Bom extends UpdateAggregateRoot {
    * @param bomLineId BOM 行Id
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param bomOperationId 消耗的工序行Id（可空）
+   * @param routingOperationId 消耗的路线工序Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -310,7 +246,7 @@ public class Bom extends UpdateAggregateRoot {
       long bomLineId,
       long materialId,
       long variantId,
-      @Nullable Long bomOperationId,
+      @Nullable Long routingOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
@@ -325,7 +261,7 @@ public class Bom extends UpdateAggregateRoot {
     if (isExistComponent(variantId, bomLineId)) {
       throw new DomainException("子件已存在于当前 BOM 中!");
     }
-    target.modify(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence);
+    target.modify(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence);
   }
 
   /**
@@ -362,36 +298,26 @@ public class Bom extends UpdateAggregateRoot {
    *
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数：从下达算起把货做出来平均要多少天
-   * @param prepareDays 备料天数：比开工日再往前推这么多天建单备料
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
-   * @throws DomainException SPU、SKU、产出数量、单位、版本为空、类型/开工/领料编码非法或天数为负时抛出
+   * @throws DomainException SPU、SKU、产出数量、单位为空、类型编码非法或天数为负时抛出
    */
   private void apply(
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     if (materialId <= 0) {
       throw new DomainException("父件SPU不能为空");
@@ -408,33 +334,15 @@ public class Bom extends UpdateAggregateRoot {
     if (unitId <= 0) {
       throw new DomainException("产出单位不能为空");
     }
-    String trimmedVersion = StringUtils.trimToNull(version);
-    if (trimmedVersion == null) {
-      throw new DomainException("版本号不能为空");
-    }
     this.type = EnumUtils.getCode(BomTypeEnum.class, type, "BOM 类型");
-    this.startMode = EnumUtils.getCode(BomStartModeEnum.class, startMode, "开工方式");
-    this.issueMode = EnumUtils.getCode(BomIssueModeEnum.class, issueMode, "领料方式");
-    if (leadDays < 0) {
-      throw new DomainException("制造天数不能为负数");
-    }
-    if (prepareDays < 0) {
-      throw new DomainException("备料天数不能为负数");
-    }
-    if (batchSize != null && batchSize.signum() <= 0) {
-      throw new DomainException("批量必须大于0");
-    }
 
     this.code = StringUtils.trimToNull(code);
-    this.version = trimmedVersion;
     this.materialId = materialId;
     this.variantId = variantId;
     this.routingId = routingId;
     this.qty = qty;
     this.unitId = unitId;
-    this.leadDays = leadDays;
-    this.prepareDays = prepareDays;
-    this.batchSize = batchSize;
+    this.isDefault = isDefault;
     this.disabled = disabled;
     this.remark = remark;
   }

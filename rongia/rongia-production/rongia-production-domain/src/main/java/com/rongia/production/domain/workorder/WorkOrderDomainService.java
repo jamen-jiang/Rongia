@@ -4,9 +4,7 @@ import com.rongia.production.domain.bom.Bom;
 import com.rongia.production.domain.bom.BomLine;
 import com.rongia.production.domain.bom.BomRepository;
 import com.rongia.production.domain.bom.BomTypeEnum;
-import com.rongia.production.domain.bomoperation.BomOperation;
-import com.rongia.production.domain.bomoperation.BomOperationParentTypeEnum;
-import com.rongia.production.domain.bomoperation.BomOperationRepository;
+import com.rongia.production.domain.routing.RoutingOperation;
 import com.rongia.production.domain.operation.Operation;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.routing.Routing;
@@ -56,9 +54,6 @@ public class WorkOrderDomainService {
   /** 工作中心仓储 */
   private final WorkCenterRepository workCenterRepository;
 
-  /** 工序行仓储 */
-  private final BomOperationRepository bomOperationRepository;
-
   /**
    * 构造器注入
    *
@@ -68,7 +63,6 @@ public class WorkOrderDomainService {
    * @param routingRepository 工艺路线仓储
    * @param operationRepository 工序仓储
    * @param workCenterRepository 工作中心仓储
-   * @param bomOperationRepository 工序行仓储
    */
   public WorkOrderDomainService(
       WorkOrderFactory workOrderFactory,
@@ -76,15 +70,13 @@ public class WorkOrderDomainService {
       BomRepository bomRepository,
       RoutingRepository routingRepository,
       OperationRepository operationRepository,
-      WorkCenterRepository workCenterRepository,
-      BomOperationRepository bomOperationRepository) {
+      WorkCenterRepository workCenterRepository) {
     this.workOrderFactory = workOrderFactory;
     this.workOrderRepository = workOrderRepository;
     this.bomRepository = bomRepository;
     this.routingRepository = routingRepository;
     this.operationRepository = operationRepository;
     this.workCenterRepository = workCenterRepository;
-    this.bomOperationRepository = bomOperationRepository;
   }
 
   /**
@@ -100,11 +92,8 @@ public class WorkOrderDomainService {
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param unitId 单位Id
-   * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
    * @param destWarehouseId 成品收货仓库Id
-   * @param finalWarehouseId 最终仓库Id（可空）
-   * @param productionWarehouseId 生产仓库Id（可空）
 
    * @param remark 备注（可空）
    * @return 工单聚合
@@ -122,11 +111,8 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long pickingTypeId,
       long srcWarehouseId,
       long destWarehouseId,
-      @Nullable Long finalWarehouseId,
-      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return workOrderFactory.create(
@@ -142,11 +128,8 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        pickingTypeId,
         srcWarehouseId,
         destWarehouseId,
-        finalWarehouseId,
-        productionWarehouseId,
         remark,
         "");
   }
@@ -165,11 +148,8 @@ public class WorkOrderDomainService {
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
    * @param destWarehouseId 成品收货仓库Id
-   * @param finalWarehouseId 最终仓库Id（可空）
-   * @param productionWarehouseId 生产仓库Id（可空）
 
    * @param remark 备注（可空）
    * @return 工单聚合
@@ -189,11 +169,8 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long pickingTypeId,
       long srcWarehouseId,
       long destWarehouseId,
-      @Nullable Long finalWarehouseId,
-      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     WorkOrder model = getExist(id);
     model.modify(
@@ -209,11 +186,8 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        pickingTypeId,
         srcWarehouseId,
         destWarehouseId,
-        finalWarehouseId,
-        productionWarehouseId,
         remark);
     return model;
   }
@@ -284,7 +258,7 @@ public class WorkOrderDomainService {
           requirement.bomLineId(),
           requirement.materialId(),
           requirement.variantId(),
-          requirement.bomOperationId(),
+          requirement.routingOperationId(),
           requirement.requiredQty(),
           requirement.unitId());
     }
@@ -358,15 +332,14 @@ public class WorkOrderDomainService {
    * @throws DomainException 引用的工序或工作中心不可用、或工序顺序重复时抛出
    */
   private List<OperationSnapshot> resolveOperations(Routing routing) {
-    List<BomOperation> items =
-        bomOperationRepository
-            .listByParent(BomOperationParentTypeEnum.ROUTING.getCode(), routing.getId())
-            .stream()
-            .sorted(Comparator.comparing(BomOperation::getSequence))
+    List<RoutingOperation> items =
+        routing.getRoutingOperations().stream()
+            .filter(o -> !o.getIsDeleted())
+            .sorted(Comparator.comparing(RoutingOperation::getSequence))
             .toList();
     Set<Integer> sequences = new HashSet<>();
     List<OperationSnapshot> result = new ArrayList<>(items.size());
-    for (BomOperation item : items) {
+    for (RoutingOperation item : items) {
       if (!sequences.add(item.getSequence())) {
         throw new DomainException(
             "工艺路线" + routing.getName() + "的工序顺序" + item.getSequence() + "重复!");
@@ -462,7 +435,7 @@ public class WorkOrderDomainService {
               line.getId(),
               line.getMaterialId(),
               line.getVariantId(),
-              line.getBomOperationId(),
+              line.getRoutingOperationId(),
               required,
               line.getUnitId()));
     }
@@ -492,9 +465,9 @@ public class WorkOrderDomainService {
             existing.bomLineId() == null ? item.bomLineId() : existing.bomLineId(),
             existing.materialId(),
             existing.variantId(),
-            existing.bomOperationId() == null
-                ? item.bomOperationId()
-                : existing.bomOperationId(),
+            existing.routingOperationId() == null
+                ? item.routingOperationId()
+                : existing.routingOperationId(),
             existing.requiredQty().add(item.requiredQty()),
             existing.unitId()));
   }
@@ -515,7 +488,7 @@ public class WorkOrderDomainService {
       @Nullable Long bomLineId,
       Long materialId,
       Long variantId,
-      @Nullable Long bomOperationId,
+      @Nullable Long routingOperationId,
       BigDecimal requiredQty,
       Long unitId) {}
 }

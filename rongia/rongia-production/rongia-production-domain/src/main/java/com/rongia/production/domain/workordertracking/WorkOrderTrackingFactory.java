@@ -1,25 +1,12 @@
-package com.rongia.production.domain.productionreport;
+package com.rongia.production.domain.workordertracking;
 
-import com.rongia.shared.domain.exception.DomainException;
 import java.math.BigDecimal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-/** 生产报工单工厂，负责创建报工单 */
+/** 工单跟踪（报工单）工厂，负责创建报工单 */
 @NullMarked
-public class ProductionReportFactory {
-
-  /** 报工单仓储 */
-  private final ProductionReportRepository productionReportRepository;
-
-  /**
-   * 构造器注入
-   *
-   * @param productionReportRepository 报工单仓储
-   */
-  public ProductionReportFactory(ProductionReportRepository productionReportRepository) {
-    this.productionReportRepository = productionReportRepository;
-  }
+public class WorkOrderTrackingFactory {
 
   /**
    * 创建报工单
@@ -36,11 +23,9 @@ public class ProductionReportFactory {
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
    * @param remark 备注（可空）
-   * @param number 单号（传空串表示由 OrderAddedEvent 的监听器分配）
    * @return 报工单聚合
-   * @throws DomainException 单号已存在时抛出
    */
-  public ProductionReport create(
+  public WorkOrderTracking create(
       long workOrderId,
       String workOrderNumber,
       long workOrderOperationId,
@@ -52,13 +37,8 @@ public class ProductionReportFactory {
       BigDecimal workTime,
       BigDecimal goodQty,
       BigDecimal lossQty,
-      @Nullable String remark,
-      String number) {
-    // 单号非空时才校验唯一，空串代表尚未分配
-    if (!number.isBlank() && productionReportRepository.isExistByNumberExcludeId(number)) {
-      throw new DomainException("报工单号" + number + "已存在!");
-    }
-    return new ProductionReport(
+      @Nullable String remark) {
+    return new WorkOrderTracking(
         workOrderId,
         workOrderNumber,
         workOrderOperationId,
@@ -70,7 +50,6 @@ public class ProductionReportFactory {
         workTime,
         goodQty,
         lossQty,
-        remark,
-        number);
+        remark);
   }
 }

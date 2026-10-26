@@ -56,13 +56,13 @@ public class WorkOrderLine extends BaseDeleteEntity {
   private Long variantId;
 
   /**
-   * 投放工序行Id（可空，下达时从 BOM 行照抄）：这颗料在哪道工序干活时被用掉。
+   * 投放路线工序Id（可空，下达时从 BOM 行照抄）：这颗料在哪道工序干活时被用掉。
    *
    * <p>割边开工发磨削液、镀膜开工发膜料，靠它对上；空表示从头跟着走，开工就把料备到车间。
    */
-  @Column(name = "BomOperationId")
+  @Column(name = "RoutingOperationId")
   @Nullable
-  private Long bomOperationId;
+  private Long routingOperationId;
 
   /** 需求数量 */
   @Column(name = "RequiredQty", nullable = false, precision = 18, scale = 2)
@@ -90,7 +90,7 @@ public class WorkOrderLine extends BaseDeleteEntity {
    * @param bomLineId 来源BOM行Id（可空，手工加料时为空）
    * @param materialId 物料SPU
    * @param variantId 物料SKU
-   * @param bomOperationId 投放工序行Id（可空，下达时从 BOM 行照抄）
+   * @param routingOperationId 投放路线工序Id（可空，下达时从 BOM 行照抄）
    * @param requiredQty 需求数量
    * @param unitId 单位Id
    * @throws DomainException SPU、物料、单位非法或需求数量为负时抛出
@@ -99,7 +99,7 @@ public class WorkOrderLine extends BaseDeleteEntity {
       @Nullable Long bomLineId,
       long materialId,
       long variantId,
-      @Nullable Long bomOperationId,
+      @Nullable Long routingOperationId,
       BigDecimal requiredQty,
       long unitId) {
     if (materialId <= 0) {
@@ -117,7 +117,7 @@ public class WorkOrderLine extends BaseDeleteEntity {
     this.bomLineId = bomLineId;
     this.materialId = materialId;
     this.variantId = variantId;
-    this.bomOperationId = bomOperationId;
+    this.routingOperationId = routingOperationId;
     this.requiredQty = requiredQty;
     this.issuedQty = BigDecimal.ZERO;
     this.consumedQty = BigDecimal.ZERO;

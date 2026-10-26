@@ -132,10 +132,6 @@ public class WorkOrder extends OrderAggregateRoot {
   @Column(name = "UnitId", nullable = false)
   private Long unitId;
 
-  /** 操作类型Id（照 Odoo 的 picking_type_id：这单走哪套收发手续） */
-  @Column(name = "PickingTypeId", nullable = false)
-  private Long pickingTypeId;
-
   /** 发料仓库Id（照 Odoo 的 location_src_id，必填）：领料从这里出 */
   @Column(name = "SrcWarehouseId", nullable = false)
   private Long srcWarehouseId;
@@ -143,16 +139,6 @@ public class WorkOrder extends OrderAggregateRoot {
   /** 成品收货仓库Id（照 Odoo 的 location_dest_id，必填）：完工进这里 */
   @Column(name = "DestWarehouseId", nullable = false)
   private Long destWarehouseId;
-
-  /** 最终仓库Id（可空，照 Odoo 的 location_final_id：补货/跨仓流转的最终落点） */
-  @Column(name = "FinalWarehouseId")
-  @Nullable
-  private Long finalWarehouseId;
-
-  /** 生产仓库Id（可空，照 Odoo 的 production_location_id：在制品的账面停泊位） */
-  @Column(name = "ProductionWarehouseId")
-  @Nullable
-  private Long productionWarehouseId;
 
   /** 状态编码，取值见 {@link WorkOrderStatusEnum} */
   @Nationalized
@@ -165,15 +151,6 @@ public class WorkOrder extends OrderAggregateRoot {
   @Nullable
   private String remark;
 
-  /** 工单工序（下达时按路线快照生成） */
-  @OneToMany(
-      fetch = FetchType.EAGER,
-      cascade = {CascadeType.PERSIST, CascadeType.MERGE},
-      orphanRemoval = true)
-  @JoinColumn(name = "WorkOrderId")
-  @SQLRestriction("IsDeleted = 0")
-  private List<WorkOrderOperation> workOrderOperations = new ArrayList<>();
-
   /** 工单用料（下达时按 BOM 展开生成） */
   @OneToMany(
       fetch = FetchType.EAGER,
@@ -182,6 +159,15 @@ public class WorkOrder extends OrderAggregateRoot {
   @JoinColumn(name = "WorkOrderId")
   @SQLRestriction("IsDeleted = 0")
   private List<WorkOrderLine> workOrderLines = new ArrayList<>();
+
+  /** 工单工序（下达时按路线快照生成） */
+  @OneToMany(
+      fetch = FetchType.EAGER,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE},
+      orphanRemoval = true)
+  @JoinColumn(name = "WorkOrderId")
+  @SQLRestriction("IsDeleted = 0")
+  private List<WorkOrderOperation> workOrderOperations = new ArrayList<>();
 
   /**
    * 构造器
@@ -198,11 +184,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
    * @param destWarehouseId 成品收货仓库Id
-   * @param finalWarehouseId 最终仓库Id（可空）
-   * @param productionWarehouseId 生产仓库Id（可空）
    * @param remark 备注（可空）
    * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
    */
@@ -219,11 +202,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long pickingTypeId,
       long srcWarehouseId,
       long destWarehouseId,
-      @Nullable Long finalWarehouseId,
-      @Nullable Long productionWarehouseId,
       @Nullable String remark,
       String number) {
     super(number);
@@ -240,11 +220,8 @@ public class WorkOrder extends OrderAggregateRoot {
         plannedStartTime,
         qty,
         unitId,
-        pickingTypeId,
         srcWarehouseId,
         destWarehouseId,
-        finalWarehouseId,
-        productionWarehouseId,
         remark);
     this.status = WorkOrderStatusEnum.DRAFT.getCode();
   }
@@ -260,21 +237,21 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 获取工单工序（只读）
-   *
-   * @return 不可变列表
-   */
-  public List<WorkOrderOperation> getWorkOrderOperations() {
-    return Collections.unmodifiableList(workOrderOperations);
-  }
-
-  /**
    * 获取工单用料（只读）
    *
    * @return 不可变列表
    */
   public List<WorkOrderLine> getWorkOrderLines() {
     return Collections.unmodifiableList(workOrderLines);
+  }
+
+  /**
+   * 获取工单工序（只读）
+   *
+   * @return 不可变列表
+   */
+  public List<WorkOrderOperation> getWorkOrderOperations() {
+    return Collections.unmodifiableList(workOrderOperations);
   }
 
   /**
@@ -318,11 +295,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
    * @param destWarehouseId 成品收货仓库Id
-   * @param finalWarehouseId 最终仓库Id（可空）
-   * @param productionWarehouseId 生产仓库Id（可空）
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态时抛出
    */
@@ -339,11 +313,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long pickingTypeId,
       long srcWarehouseId,
       long destWarehouseId,
-      @Nullable Long finalWarehouseId,
-      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     if (!isDraft()) {
       throw new DomainException("工单已下达，不能再修改");
@@ -361,11 +332,8 @@ public class WorkOrder extends OrderAggregateRoot {
         plannedStartTime,
         qty,
         unitId,
-        pickingTypeId,
         srcWarehouseId,
         destWarehouseId,
-        finalWarehouseId,
-        productionWarehouseId,
         remark);
   }
 
@@ -417,7 +385,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param bomLineId 来源BOM行Id（可空）
    * @param materialId 物料SPU
    * @param variantId 物料SKU
-   * @param bomOperationId 投放工序行Id（可空，下达时从 BOM 行照抄）
+   * @param routingOperationId 投放路线工序Id（可空，下达时从 BOM 行照抄）
    * @param requiredQty 需求数量
    * @param unitId 单位Id
    * @throws DomainException 非草稿状态时抛出
@@ -426,7 +394,7 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable Long bomLineId,
       long materialId,
       long variantId,
-      @Nullable Long bomOperationId,
+      @Nullable Long routingOperationId,
       BigDecimal requiredQty,
       long unitId) {
     if (!isDraft()) {
@@ -434,7 +402,7 @@ public class WorkOrder extends OrderAggregateRoot {
     }
     workOrderLines.add(
         new WorkOrderLine(
-            bomLineId, materialId, variantId, bomOperationId, requiredQty, unitId));
+            bomLineId, materialId, variantId, routingOperationId, requiredQty, unitId));
   }
 
   /**
@@ -540,7 +508,7 @@ public class WorkOrder extends OrderAggregateRoot {
   /**
    * 工序报工（行级校验）
    *
-   * <p>报工明细由 {@code ProductionReport} 承载，权威数在流水里；行上的合计由报工侧按流水回写。这里只做
+   * <p>报工明细由 {@code WorkOrderTracking} 承载，权威数在流水里；行上的合计由报工侧按流水回写。这里只做
    * 行级校验；「累计报工数不得超过可投入数量」这道数量闸在报工领域服务里按流水算（本聚合不读报工仓储）。
    *
    * @param workOrderOperationId 工单工序Id
@@ -808,11 +776,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
    * @param destWarehouseId 成品收货仓库Id
-   * @param finalWarehouseId 最终仓库Id（可空）
-   * @param productionWarehouseId 生产仓库Id（可空）
    * @param remark 备注（可空）
    * @throws DomainException SPU、SKU、数量、单位、来源类型非法，或开工时间晚于交期时抛出
    */
@@ -829,11 +794,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long pickingTypeId,
       long srcWarehouseId,
       long destWarehouseId,
-      @Nullable Long finalWarehouseId,
-      @Nullable Long productionWarehouseId,
       @Nullable String remark) {
     if (materialId <= 0) {
       throw new DomainException("产出SPU不能为空");
@@ -867,25 +829,14 @@ public class WorkOrder extends OrderAggregateRoot {
     this.routingId = routingId;
     this.deliveryTime = deliveryTime;
     this.plannedStartTime = plannedStartTime;
-    if (pickingTypeId <= 0) {
-      throw new DomainException("操作类型不能为空");
-    }
     if (srcWarehouseId <= 0) {
       throw new DomainException("发料仓库不能为空");
     }
     if (destWarehouseId <= 0) {
       throw new DomainException("成品收货仓库不能为空");
     }
-    if (finalWarehouseId != null && finalWarehouseId <= 0) {
-      throw new DomainException("最终仓库Id有误!");
-    }
-    if (productionWarehouseId != null && productionWarehouseId <= 0) {
-      throw new DomainException("生产仓库Id有误!");
-    }
     this.srcWarehouseId = srcWarehouseId;
     this.destWarehouseId = destWarehouseId;
-    this.finalWarehouseId = finalWarehouseId;
-    this.productionWarehouseId = productionWarehouseId;
     this.priority = EnumUtils.getCode(PriorityEnum.class, priority, "优先级");
     this.remark = remark;
   }

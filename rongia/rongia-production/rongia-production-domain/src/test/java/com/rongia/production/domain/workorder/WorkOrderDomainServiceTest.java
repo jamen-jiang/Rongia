@@ -12,7 +12,7 @@ import com.rongia.production.domain.bom.BomFactory;
 import com.rongia.production.domain.bom.BomLineData;
 import com.rongia.production.domain.bom.BomRepository;
 import com.rongia.production.domain.bom.BomTypeEnum;
-import com.rongia.production.domain.bomoperation.BomOperationRepository;
+import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
@@ -38,7 +38,7 @@ class WorkOrderDomainServiceTest {
           mock(RoutingRepository.class),
           mock(OperationRepository.class),
           mock(WorkCenterRepository.class),
-          mock(BomOperationRepository.class));
+          mock(RoutingRepository.class));
 
   /** 造一张 BOM，用给定的类型与产出数量 */
   private Bom bom(String type, String qty, BomLineData... lines) {
@@ -64,7 +64,7 @@ class WorkOrderDomainServiceTest {
       model.addLine(
           line.materialId(),
           line.variantId(),
-          line.bomOperationId(),
+          line.routingOperationId(),
           line.qty(),
           line.lossRate(),
           line.unitId(),

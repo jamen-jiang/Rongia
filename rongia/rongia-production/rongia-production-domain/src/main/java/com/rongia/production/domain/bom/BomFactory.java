@@ -26,57 +26,37 @@ public class BomFactory {
    *
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数（天）
-   * @param prepareDays 提前备料天数
-   * @param batchSize 自动生成工单的批量（可空）
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param disabled 是否禁用
    * @param remark 备注（可空）
    * @return BOM 聚合
-   * @throws DomainException 父件SKU + 版本已存在时抛出
    */
   public Bom create(
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
+
+      boolean isDefault,
       boolean disabled,
       @Nullable String remark) {
-    // 校验父件SPU + SKU + 版本唯一
-    if (bomRepository.isExistByMaterialIdAndVariantIdAndVersionExcludeId(
-        materialId, variantId, version)) {
-      throw new DomainException("该父件的 BOM 版本" + version + "已存在!");
-    }
     return new Bom(
         type,
         code,
-        version,
         materialId,
         variantId,
         routingId,
         qty,
         unitId,
-        startMode,
-        issueMode,
-        leadDays,
-        prepareDays,
-        batchSize,
+        isDefault,
         disabled,
         remark);
   }

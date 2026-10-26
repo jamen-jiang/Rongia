@@ -44,41 +44,31 @@ public class BomDomainService {
    *
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数（天）
-   * @param prepareDays 备料天数（天）
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
    * @return BOM 聚合
    */
   public Bom importGenerate(
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     requireRouting(routingId);
 
     // 按父件SKU + 版本查 BOM
-    Bom model = bomRepository.getByMaterialIdAndVariantIdAndVersion(materialId, variantId, version);
+Bom model = null;
 
     // 不存在则创建，存在则修改
     if (model == null) {
@@ -86,36 +76,26 @@ public class BomDomainService {
           bomFactory.create(
               type,
               code,
-              version,
-              materialId,
+                    materialId,
               variantId,
               routingId,
               qty,
               unitId,
-              startMode,
-              issueMode,
-              leadDays,
-              prepareDays,
-              batchSize,
-              disabled,
+                    disabled,
+              isDefault,
               remark);
     } else {
       modify(
           model,
           type,
           code,
-          version,
-          materialId,
+            materialId,
           variantId,
           routingId,
           qty,
           unitId,
-          startMode,
-          issueMode,
-          leadDays,
-          prepareDays,
-          batchSize,
-          disabled,
+            disabled,
+          isDefault,
           remark);
     }
 
@@ -128,18 +108,13 @@ public class BomDomainService {
    * @param id BOM Id
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数（天）
-   * @param prepareDays 备料天数（天）
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
    * @return BOM 聚合
    * @throws DomainException BOM 不存在时抛出
@@ -148,36 +123,26 @@ public class BomDomainService {
       long id,
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     Bom model = getExist(id);
     modify(
         model,
         type,
         code,
-        version,
         materialId,
         variantId,
         routingId,
         qty,
         unitId,
-        startMode,
-        issueMode,
-        leadDays,
-        prepareDays,
-        batchSize,
         disabled,
+        isDefault,
         remark);
     return model;
   }
@@ -188,18 +153,13 @@ public class BomDomainService {
    * @param model BOM 聚合
    * @param type BOM 类型编码
    * @param code 参考号（可空）
-   * @param version 版本号
    * @param materialId 父件SPU
    * @param variantId 父件SKU（可空）
    * @param routingId 工艺路线Id（可空）
    * @param qty 产出数量
    * @param unitId 产出单位Id
-   * @param startMode 开工方式编码
-   * @param issueMode 领料方式编码
-   * @param leadDays 制造天数（天）
-   * @param prepareDays 备料天数（天）
-   * @param batchSize 自动生成工单的批量（可空）
    * @param disabled 是否禁用
+   * @param isDefault 是否默认（同一父件多张 BOM 时下达默认用哪张）
    * @param remark 备注（可空）
    * @throws DomainException 父件SKU + 版本与其它 BOM 冲突时抛出
    */
@@ -207,40 +167,26 @@ public class BomDomainService {
       Bom model,
       String type,
       @Nullable String code,
-      String version,
       long materialId,
       @Nullable Long variantId,
       @Nullable Long routingId,
       BigDecimal qty,
       long unitId,
-      String startMode,
-      String issueMode,
-      int leadDays,
-      int prepareDays,
-      @Nullable BigDecimal batchSize,
       boolean disabled,
+      boolean isDefault,
       @Nullable String remark) {
     requireRouting(routingId);
     // 校验父件SKU + 版本唯一
-    if (bomRepository.isExistByMaterialIdAndVariantIdAndVersionExcludeId(
-        materialId, variantId, version, model.getId())) {
-      throw new DomainException("该父件的 BOM 版本" + version + "已存在!");
-    }
     model.modify(
         type,
         code,
-        version,
         materialId,
         variantId,
         routingId,
         qty,
         unitId,
-        startMode,
-        issueMode,
-        leadDays,
-        prepareDays,
-        batchSize,
         disabled,
+        isDefault,
         remark);
   }
 
@@ -250,38 +196,31 @@ public class BomDomainService {
    * <p>改配方不动老版本：老版本可能还挂着在制工单，复制出来换成新版本号再改，历史就还能按版本回溯。
    *
    * @param id 源 BOM Id
-   * @param version 新版本号
    * @param remark 备注（可空）
    * @return 新 BOM（由调用方落库）
-   * @throws DomainException 源 BOM 不存在、或新版本号已存在时抛出
+   * @throws DomainException 源 BOM 不存在时抛出
    */
   public Bom copy(
       long id,
-      String version,
       @Nullable String remark) {
     Bom source = getExist(id);
     Bom model =
         bomFactory.create(
             source.getType(),
             source.getCode(),
-            version,
             source.getMaterialId(),
             source.getVariantId(),
             source.getRoutingId(),
             source.getQty(),
             source.getUnitId(),
-            source.getStartMode(),
-            source.getIssueMode(),
-            source.getLeadDays(),
-            source.getPrepareDays(),
-            source.getBatchSize(),
+            false,
             Boolean.TRUE.equals(source.getDisabled()),
             remark);
     for (BomLine line : source.getBomLines()) {
       model.addLine(
           line.getMaterialId(),
           line.getVariantId(),
-          line.getBomOperationId(),
+          line.getRoutingOperationId(),
           line.getQty(),
           line.getLossRate(),
           line.getUnitId(),
@@ -358,7 +297,7 @@ public class BomDomainService {
             id,
             data.materialId(),
             data.variantId(),
-            data.bomOperationId(),
+            data.routingOperationId(),
             data.qty(),
             data.lossRate(),
             data.unitId(),
@@ -368,7 +307,7 @@ public class BomDomainService {
         bom.addLine(
             data.materialId(),
             data.variantId(),
-            data.bomOperationId(),
+            data.routingOperationId(),
             data.qty(),
             data.lossRate(),
             data.unitId(),

@@ -6,7 +6,7 @@ import org.jspecify.annotations.NullMarked;
 /**
  * 流水号类型枚举
  *
- * <p>编码沿用实体表名（{@code WorkOrder} / {@code ProductionReport}），与
+ * <p>编码沿用实体表名（{@code WorkOrder} / {@code WorkOrderTracking}），与
  * {@code OrderAddedEvent} 里带出去的类型串一致，流水号规则按这个编码挂单号前缀与编号段。一张表一个编码，表里的
  * 红字单、普通单共用一个号段。
  */
@@ -21,7 +21,7 @@ public enum SerialNumberTypeEnum implements BaseEnum {
   WORK_ORDER("WorkOrder", "工单"),
 
   /** 生产报工单 */
-  PRODUCTION_REPORT("ProductionReport", "生产报工单"),
+  WORK_ORDER_TRACKING("WorkOrderTracking", "工单跟踪单（报工）"),
 
   /** 库存单据（通用出入库单，红字单也用这一段号） */
   STOCK_ENTRY("StockEntry", "库存单据");

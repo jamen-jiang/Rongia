@@ -1,7 +1,6 @@
-package com.rongia.production.domain.productionreport;
+package com.rongia.production.domain.workordertracking;
 
-import com.rongia.shared.domain.aggregate.OrderAggregateRoot;
-import com.rongia.shared.domain.enums.SerialNumberTypeEnum;
+import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
 import com.rongia.shared.domain.exception.DomainException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,7 +18,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 生产报工单
+ * 工单跟踪单
  *
  * <p>为什么独立成聚合而不是给工单工序加几个字段：报工是「一次事件」，天然带操作人、 本次良品/报废与工时。拍平成一个累计值之后，计件工资、人工成本、异常分析全部无从追溯。
  *
@@ -36,15 +35,15 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
-    name = "ProductionReport",
+    name = "WorkOrderTracking",
     indexes = {
-      @Index(name = "IX_ProductionReport_WorkOrderId", columnList = "WorkOrderId"),
+      @Index(name = "IX_WorkOrderTracking_WorkOrderId", columnList = "WorkOrderId"),
       @Index(
-          name = "IX_ProductionReport_WorkOrderOperationId",
+          name = "IX_WorkOrderTracking_WorkOrderOperationId",
           columnList = "WorkOrderOperationId"),
-      @Index(name = "IX_ProductionReport_OperatorId", columnList = "OperatorId")
+      @Index(name = "IX_WorkOrderTracking_OperatorId", columnList = "OperatorId")
     })
-public class ProductionReport extends OrderAggregateRoot {
+public class WorkOrderTracking extends UpdateAggregateRoot {
 
   /** 工单Id */
   @Column(name = "WorkOrderId", nullable = false)
@@ -120,9 +119,8 @@ public class ProductionReport extends OrderAggregateRoot {
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
    * @param remark 备注（可空）
-   * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
    */
-  ProductionReport(
+  WorkOrderTracking(
       long workOrderId,
       String workOrderNumber,
       long workOrderOperationId,
@@ -134,9 +132,7 @@ public class ProductionReport extends OrderAggregateRoot {
       BigDecimal workTime,
       BigDecimal goodQty,
       BigDecimal lossQty,
-      @Nullable String remark,
-      String number) {
-    super(number);
+      @Nullable String remark) {
     apply(
         workOrderId,
         workOrderNumber,
@@ -153,19 +149,9 @@ public class ProductionReport extends OrderAggregateRoot {
   }
 
   /**
-   * 流水号类型
-   *
-   * @return 生产报工单类型
-   */
-  @Override
-  public SerialNumberTypeEnum getSerialNumberType() {
-    return SerialNumberTypeEnum.PRODUCTION_REPORT;
-  }
-
-  /**
    * 作废：把这一笔报工冲回去
    *
-   * <p>只负责自己这一半；把良品、报废与工时从工单工序汇总里减回去由 {@code ProductionReportDomainService}
+   * <p>只负责自己这一半；把良品、报废与工时从工单工序汇总里减回去由 {@code WorkOrderTrackingDomainService}
    * 编排，两下必须成对，否则累计值与单上之数就对不上。
    *
    * <p>作废不是删除：这张单留着，说明「当时有人在这里报过、后来冲掉了」。要再报就另开一张。
@@ -175,7 +161,7 @@ public class ProductionReport extends OrderAggregateRoot {
    */
   void voidReport(LocalDateTime moment) {
     if (isVoided()) {
-      throw new DomainException("报工单" + getNumber() + "已作废，不能再作废");
+      throw new DomainException("该报工记录已作废，不能再作废");
     }
     this.voidedTime = moment;
   }

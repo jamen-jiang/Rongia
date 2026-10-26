@@ -4,25 +4,25 @@ import com.rongia.shared.domain.enums.BaseEnum;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;
 
-/** 工单工序状态 */
+/**
+ * 工单工序状态
+ *
+ * <p>三档照 ERPNext 的 Work Order Operation.status：Pending/Work in Progress/Completed。
+ * 它是「干到哪一步」的结论，不含「能不能开工」——能不能开工由前置工序是否完工现算，不落状态，
+ * 所以没有「可开工」这一档，也没有「已跳过」：跳过的工序直接算完工、产出为 0。
+ */
 @NullMarked
 @Getter
 public enum WorkOrderOperationStatusEnum implements BaseEnum {
 
-  /** 未开始：前置工序尚未完工 */
+  /** 未开始：还没报过工 */
   PENDING("Pending", "未开始"),
 
-  /** 可开工：前置工序已完工（首道工序下达即为可开工） */
-  READY("Ready", "可开工"),
-
-  /** 加工中：自制工序为开工，外协工序为已发出 */
-  IN_PROGRESS("InProgress", "加工中"),
+  /** 加工中：已开工、尚未完工 */
+  IN_PROGRESS("Work in Progress", "加工中"),
 
   /** 已完工 */
-  COMPLETED("Completed", "已完工"),
-
-  /** 已跳过：仅可选工序可跳过 */
-  SKIPPED("Skipped", "已跳过");
+  COMPLETED("Completed", "已完工");
 
   /** 编码 */
   private final String code;

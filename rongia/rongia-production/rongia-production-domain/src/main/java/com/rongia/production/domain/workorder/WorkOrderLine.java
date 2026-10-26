@@ -15,7 +15,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 工单用料
+ * 工单用料行
  *
  * <p>工单下达时由 BOM 展开生成：需求量按 BOM 行的单位用量、父件数量与损耗率算出来，SPU 一并快照，
  * 之后 BOM 改版不影响本单。投放工序也从 BOM 行照抄（可空）；物料类型不在这里抄：它记在 {@code Variant}
@@ -30,13 +30,13 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
-    name = "WorkOrderMaterial",
+    name = "WorkOrderLine",
     indexes = {
-      @Index(name = "IX_WorkOrderMaterial_WorkOrderId", columnList = "WorkOrderId"),
-      @Index(name = "IX_WorkOrderMaterial_MaterialId", columnList = "MaterialId"),
-      @Index(name = "IX_WorkOrderMaterial_VariantId", columnList = "VariantId")
+      @Index(name = "IX_WorkOrderLine_WorkOrderId", columnList = "WorkOrderId"),
+      @Index(name = "IX_WorkOrderLine_MaterialId", columnList = "MaterialId"),
+      @Index(name = "IX_WorkOrderLine_VariantId", columnList = "VariantId")
     })
-public class WorkOrderMaterial extends BaseDeleteEntity {
+public class WorkOrderLine extends BaseDeleteEntity {
 
   /** 工单Id */
   @Column(name = "WorkOrderId")
@@ -56,13 +56,13 @@ public class WorkOrderMaterial extends BaseDeleteEntity {
   private Long variantId;
 
   /**
-   * 投放工序Id（可空，下达时从 BOM 行照抄）：这颗料在哪道工序干活时被用掉。
+   * 投放工序行Id（可空，下达时从 BOM 行照抄）：这颗料在哪道工序干活时被用掉。
    *
    * <p>割边开工发磨削液、镀膜开工发膜料，靠它对上；空表示从头跟着走，开工就把料备到车间。
    */
-  @Column(name = "RoutingOperationId")
+  @Column(name = "BomOperationId")
   @Nullable
-  private Long routingOperationId;
+  private Long bomOperationId;
 
   /** 需求数量 */
   @Column(name = "RequiredQty", nullable = false, precision = 18, scale = 2)
@@ -90,16 +90,16 @@ public class WorkOrderMaterial extends BaseDeleteEntity {
    * @param bomLineId 来源BOM行Id（可空，手工加料时为空）
    * @param materialId 物料SPU
    * @param variantId 物料SKU
-   * @param routingOperationId 投放工序Id（可空，下达时从 BOM 行照抄）
+   * @param bomOperationId 投放工序行Id（可空，下达时从 BOM 行照抄）
    * @param requiredQty 需求数量
    * @param unitId 单位Id
    * @throws DomainException SPU、物料、单位非法或需求数量为负时抛出
    */
-  WorkOrderMaterial(
+  WorkOrderLine(
       @Nullable Long bomLineId,
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal requiredQty,
       long unitId) {
     if (materialId <= 0) {
@@ -117,7 +117,7 @@ public class WorkOrderMaterial extends BaseDeleteEntity {
     this.bomLineId = bomLineId;
     this.materialId = materialId;
     this.variantId = variantId;
-    this.routingOperationId = routingOperationId;
+    this.bomOperationId = bomOperationId;
     this.requiredQty = requiredQty;
     this.issuedQty = BigDecimal.ZERO;
     this.consumedQty = BigDecimal.ZERO;

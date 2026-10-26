@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -68,15 +69,33 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Column(name = "CycleTime", nullable = false, precision = 18, scale = 2)
   private BigDecimal cycleTime;
 
-  /** 开工时间（照 Odoo 的 date_start：排产铺定的是计划，开工后就是事实；外协工序为发出时间） */
-  @Column(name = "StartTime")
-  @Nullable
-  private LocalDateTime startTime;
+  /** 批量大小（件，快照）：一次投产多少件，0 表示不分批 */
+  @Column(name = "BatchSize", nullable = false, precision = 18, scale = 2)
+  private BigDecimal batchSize;
 
-  /** 完工时间（照 Odoo 的 date_finished：铺定的是计划，完工后就是事实） */
-  @Column(name = "EndTime")
+  /** 小时费率（元/小时，快照）：下达时的中心费率，之后中心调价不影响在制工单 */
+  @Column(name = "HourlyRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal hourlyRate;
+
+  /** 计划开工时间（排产铺定，照 ERPNext 的 planned_start_time） */
+  @Column(name = "PlannedStartTime")
   @Nullable
-  private LocalDateTime endTime;
+  private LocalDateTime plannedStartTime;
+
+  /** 计划完工时间（排产铺定，照 ERPNext 的 planned_end_time） */
+  @Column(name = "PlannedEndTime")
+  @Nullable
+  private LocalDateTime plannedEndTime;
+
+  /** 实际开工时间（开工时落，照 ERPNext 的 actual_start_time；外协工序为发出时间） */
+  @Column(name = "ActualStartTime")
+  @Nullable
+  private LocalDateTime actualStartTime;
+
+  /** 实际完工时间（完工时落，照 ERPNext 的 actual_end_time） */
+  @Column(name = "ActualEndTime")
+  @Nullable
+  private LocalDateTime actualEndTime;
 
   /** 实际周期时间（分钟，只读；报工侧按报工单流水汇总回写，照 ERPNext 的 actual_operation_time 口径） */
   @Column(name = "ActualCycleTime", nullable = false, precision = 18, scale = 2)
@@ -85,11 +104,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   /** 已完成数量数量（只读；报工侧按报工单流水汇总回写，照 ERPNext 的 completed_qty 口径） */
   @Column(name = "ProducedQty", nullable = false, precision = 18, scale = 2)
   private BigDecimal producedQty = BigDecimal.ZERO;
-
-  /** 生产日期（可空；报工侧按报工单流水取最近一笔回写，照 Odoo 的 production_date 口径） */
-  @Column(name = "ProductionDate")
-  @Nullable
-  private LocalDateTime productionDate;
 
   /** 工序顺序 */
   @Column(name = "Sequence", nullable = false)
@@ -108,6 +122,8 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * @param workCenterId 工作中心Id
    * @param workCenterName 工作中心名称（快照）
    * @param cycleTime 周期时间（分钟）
+   * @param batchSize 批量大小（件）
+   * @param hourlyRate 小时费率
    * @param sequence 工序顺序
    */
   WorkOrderOperation(
@@ -116,8 +132,18 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       long workCenterId,
       String workCenterName,
       BigDecimal cycleTime,
+      BigDecimal batchSize,
+      BigDecimal hourlyRate,
       int sequence) {
-    apply(operationId, operationName, workCenterId, workCenterName, cycleTime, sequence);
+    apply(
+        operationId,
+        operationName,
+        workCenterId,
+        workCenterName,
+        cycleTime,
+        batchSize,
+        hourlyRate,
+        sequence);
     this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
   }
 
@@ -136,57 +162,45 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   /**
    * 标记为可开工
    *
-   * <p>首道工序在工单下达时调用，其余工序在上道完工时由工单统一推进。
+   * <p>三档下没有「可开工」这一档：能不能开工由工单按前置工序是否完工现算，这里只负责把状态从「未开始」
+   * 推进到「加工中」之前的合法性交给调用方判断。
    */
-  void ready() {
+  void ensureStartable() {
     if (!isPending()) {
-      return;
+      throw new DomainException("工序" + this.operationName + "当前状态不允许开工");
     }
-    this.status = WorkOrderOperationStatusEnum.READY.getCode();
-  }
-
-  /**
-   * 收回放行（可开工 → 未开始）
-   *
-   * <p>上游报工被撤回时，工单把靠这道放行的工序收回，现场就不该再看见一个开不了工的入口。
-   */
-  void hold() {
-    if (!isReady()) {
-      return;
-    }
-    this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
   }
 
   /**
    * 排产：铺计划开工与计划完工时间
    *
-   * @param startTime 计划开工时间
-   * @param endTime 计划完工时间
+   * <p>只写计划两列，不碰实际列——原计划与实际执行各存各的，事后才查得出拖了多久。
+   *
+   * @param plannedStartTime 计划开工时间
+   * @param plannedEndTime 计划完工时间
    * @throws DomainException 时间倒挂或工序已开工时抛出
    */
-  void schedule(LocalDateTime startTime, LocalDateTime endTime) {
+  void schedule(LocalDateTime plannedStartTime, LocalDateTime plannedEndTime) {
     if (isInProgress() || isCompleted()) {
       throw new DomainException("工序" + this.operationName + "已开工，不能再排产");
     }
-    if (endTime.isBefore(startTime)) {
+    if (plannedEndTime.isBefore(plannedStartTime)) {
       throw new DomainException("工序" + this.operationName + "计划完工时间早于计划开工时间");
     }
-    this.startTime = startTime;
-    this.endTime = endTime;
+    this.plannedStartTime = plannedStartTime;
+    this.plannedEndTime = plannedEndTime;
   }
 
   /**
    * 开工（外协工序即发料给供应商）
    *
-   * @param startTime 实际开工时间
+   * @param actualStartTime 实际开工时间
    * @throws DomainException 当前状态不允许开工时抛出
    */
-  public void start(LocalDateTime startTime) {
-    if (!isReady()) {
-      throw new DomainException("工序" + this.operationName + "当前状态不允许开工");
-    }
+  public void start(LocalDateTime actualStartTime) {
+    ensureStartable();
     this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
-    this.startTime = startTime;
+    this.actualStartTime = actualStartTime;
   }
 
   /**
@@ -225,54 +239,41 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * 回写流水汇总的合计（落库的只读列，报工侧按流水汇总后回写）
    *
    * <p>由报工侧按报工单流水汇总后调用：报工单过账、作废之后各跑一遍，行上的状态推进（撤空退回加工中）也在这
-   * 一并做掉。报废不落行（照 Odoo 的 qty_produced 单一口径，报废的权威数在报工单流水里），生产日期取流水
-   * 最近一笔的业务日期。
+   * 一并做掉。报废不落行（照 Odoo 的 qty_produced 单一口径，报废的权威数在报工单流水里）。
    *
    * @param producedQty 流水已完成数量
    * @param actualCycleTime 流水累计工时
-   * @param productionDate 生产日期（可空）
    */
-  void applyOperationTotals(
-      BigDecimal producedQty, BigDecimal actualCycleTime, @Nullable LocalDateTime productionDate) {
+  void applyOperationTotals(BigDecimal producedQty, BigDecimal actualCycleTime) {
     this.producedQty = producedQty;
     this.actualCycleTime = actualCycleTime;
-    this.productionDate = productionDate;
     if (isCompleted() && producedQty.signum() == 0) {
       this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
-      this.endTime = null;
+      this.actualEndTime = null;
     }
   }
 
   /**
    * 完工
    *
-   * @param endTime 实际完工时间
+   * @param actualEndTime 实际完工时间
    * @throws DomainException 未开工、或外协工序未回厂时抛出
    */
-  void complete(LocalDateTime endTime) {
+  void complete(LocalDateTime actualEndTime) {
     if (!isInProgress()) {
       throw new DomainException("工序" + this.operationName + "未开工，不能完工");
     }
     this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
-    this.endTime = endTime;
+    this.actualEndTime = actualEndTime;
   }
 
   /**
-   * 跳过
+   * 是否已结束
    *
-   * <p>把这道工序标记为不执行，后续工序照常推进。
-   */
-  void skip() {
-    this.status = WorkOrderOperationStatusEnum.SKIPPED.getCode();
-  }
-
-  /**
-   * 是否已结束（完工或跳过）
-   *
-   * @return true 表示已结束
+   * @return true 表示已完工
    */
   boolean isFinished() {
-    return isCompleted() || isSkipped();
+    return isCompleted();
   }
 
   /**
@@ -296,15 +297,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 是否可开工
-   *
-   * @return true 表示可开工
-   */
-  boolean isReady() {
-    return WorkOrderOperationStatusEnum.READY.getCode().equals(this.status);
-  }
-
-  /**
    * 是否加工中（外协工序表示已发出待回厂）
    *
    * @return true 表示加工中
@@ -322,21 +314,13 @@ public class WorkOrderOperation extends BaseDeleteEntity {
     return WorkOrderOperationStatusEnum.COMPLETED.getCode().equals(this.status);
   }
 
-  /**
-   * 是否已跳过
-   *
-   * @return true 表示已跳过
-   */
-  boolean isSkipped() {
-    return WorkOrderOperationStatusEnum.SKIPPED.getCode().equals(this.status);
-  }
-
   // ==================== 估算：工时与成本 ====================
 
   /**
    * 估算周期时间（分钟）
    *
-   * <p>手工模式下 {@code cycleTime} 是固定工时，乘以数量；自动模式应取历史工单平均， 但历史取数需要仓储支持，本版本按固定工时兜底。
+   * <p>一次循环做 {@code batchSize} 件，所以循环次数是「数量 ÷ 批量」向上取整，再乘单次循环工时。批量 0 表示不分批，
+   * 按单件循环算。{@code cycleTime} 是固定工时，取历史平均需要仓储支持，本版本按固定工时兜底。
    *
    * @param qty 计划数量
    * @return 估算周期时间（分钟）
@@ -344,7 +328,11 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    */
   public BigDecimal estimatedRunMinutes(BigDecimal qty) {
     checkQty(qty);
-    return this.cycleTime.multiply(qty);
+    if (this.batchSize.signum() <= 0) {
+      return this.cycleTime.multiply(qty);
+    }
+    BigDecimal cycles = qty.divide(this.batchSize, 0, RoundingMode.CEILING);
+    return this.cycleTime.multiply(cycles);
   }
 
   // ==================== 私有：校验与赋值 ====================
@@ -357,6 +345,8 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * @param workCenterId 工作中心Id
    * @param workCenterName 工作中心名称（快照）
    * @param cycleTime 周期时间（分钟）
+   * @param batchSize 批量大小（件）
+   * @param hourlyRate 小时费率
    * @param sequence 工序顺序
    * @throws DomainException 快照字段非法时抛出
    */
@@ -366,6 +356,8 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       long workCenterId,
       String workCenterName,
       BigDecimal cycleTime,
+      BigDecimal batchSize,
+      BigDecimal hourlyRate,
       int sequence) {
     if (sequence <= 0) {
       throw new DomainException("工序顺序必须大于0");
@@ -385,12 +377,16 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       throw new DomainException("工作中心名称不能为空");
     }
     validateNonNegative("周期时间", cycleTime);
+    validateNonNegative("批量大小", batchSize);
+    validateNonNegative("小时费率", hourlyRate);
 
     this.operationId = operationId;
     this.operationName = trimmedName;
     this.workCenterId = workCenterId;
     this.workCenterName = trimmedWorkCenterName;
     this.cycleTime = cycleTime;
+    this.batchSize = batchSize;
+    this.hourlyRate = hourlyRate;
     this.sequence = sequence;
   }
 

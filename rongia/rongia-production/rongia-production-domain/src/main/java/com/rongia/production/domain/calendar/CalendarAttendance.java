@@ -1,4 +1,4 @@
-package com.rongia.production.domain.workcalendar;
+package com.rongia.production.domain.calendar;
 
 import com.rongia.shared.domain.entity.BaseDeleteEntity;
 import com.rongia.shared.domain.enums.DayOfWeekEnum;
@@ -19,7 +19,7 @@ import org.hibernate.annotations.Nationalized;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * 工作日时段（日历的子行）
+ * 日历时段（日历的子行）
  *
  * <p>一行 = 某个星期几的一段上班时间，照 Odoo 19 的 {@code resource.calendar.attendance}。
  * 一天可以有多段（上午 8:00–12:00、下午 13:00–17:00），午休不排进来就是两行，不需要单独的「休息」类型。
@@ -33,16 +33,16 @@ import org.jspecify.annotations.NullMarked;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(
-    name = "WorkCalendarSlot",
+    name = "CalendarAttendance",
     indexes = {
-      @Index(name = "IX_WorkCalendarSlot_WorkCalendarId", columnList = "WorkCalendarId"),
-      @Index(name = "IX_WorkCalendarSlot_DayOfWeek", columnList = "DayOfWeek")
+      @Index(name = "IX_CalendarAttendance_CalendarId", columnList = "CalendarId"),
+      @Index(name = "IX_CalendarAttendance_DayOfWeek", columnList = "DayOfWeek")
     })
-public class WorkCalendarSlot extends BaseDeleteEntity {
+public class CalendarAttendance extends BaseDeleteEntity {
 
   /** 工作日历Id */
-  @Column(name = "WorkCalendarId")
-  private Long workCalendarId;
+  @Column(name = "CalendarId")
+  private Long calendarId;
 
   /** 星期几，取值见 {@link DayOfWeekEnum} */
   @Nationalized
@@ -65,7 +65,7 @@ public class WorkCalendarSlot extends BaseDeleteEntity {
    * @param endTime 下班时间
    * @throws DomainException 星期编码非法、或下班时间不晚于上班时间时抛出
    */
-  WorkCalendarSlot(String dayOfWeek, LocalTime startTime, LocalTime endTime) {
+  CalendarAttendance(String dayOfWeek, LocalTime startTime, LocalTime endTime) {
     apply(dayOfWeek, startTime, endTime);
   }
 

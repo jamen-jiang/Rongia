@@ -1,4 +1,4 @@
-package com.rongia.production.domain.workcalendar;
+package com.rongia.production.domain.calendar;
 
 import com.rongia.shared.domain.exception.DomainException;
 import java.time.LocalDateTime;
@@ -8,24 +8,24 @@ import org.jspecify.annotations.Nullable;
 
 /** 工作日历领域服务，负责跨聚合编排与子行同步 */
 @NullMarked
-public class WorkCalendarDomainService {
+public class CalendarDomainService {
 
   /** 工作日历工厂 */
-  private final WorkCalendarFactory workCalendarFactory;
+  private final CalendarFactory calendarFactory;
 
   /** 工作日历仓储 */
-  private final WorkCalendarRepository workCalendarRepository;
+  private final CalendarRepository calendarRepository;
 
   /**
    * 构造器注入
    *
-   * @param workCalendarFactory 工作日历工厂
-   * @param workCalendarRepository 工作日历仓储
+   * @param calendarFactory 工作日历工厂
+   * @param calendarRepository 工作日历仓储
    */
-  public WorkCalendarDomainService(
-      WorkCalendarFactory workCalendarFactory, WorkCalendarRepository workCalendarRepository) {
-    this.workCalendarFactory = workCalendarFactory;
-    this.workCalendarRepository = workCalendarRepository;
+  public CalendarDomainService(
+      CalendarFactory calendarFactory, CalendarRepository calendarRepository) {
+    this.calendarFactory = calendarFactory;
+    this.calendarRepository = calendarRepository;
   }
 
   /**
@@ -37,14 +37,14 @@ public class WorkCalendarDomainService {
    * @param remark 备注（可空）
    * @return 工作日历聚合
    */
-  public WorkCalendar importGenerate(
+  public Calendar importGenerate(
       String code, String name, boolean disabled, @Nullable String remark) {
     // 按代码查工作日历
-    WorkCalendar model = workCalendarRepository.getByCode(code);
+    Calendar model = calendarRepository.getByCode(code);
 
     // 不存在则创建，存在则修改
     if (model == null) {
-      model = workCalendarFactory.create(code, name, disabled, remark);
+      model = calendarFactory.create(code, name, disabled, remark);
     } else {
       modify(model, code, name, disabled, remark);
     }
@@ -63,9 +63,9 @@ public class WorkCalendarDomainService {
    * @return 工作日历聚合
    * @throws DomainException 工作日历不存在时抛出
    */
-  public WorkCalendar modify(
+  public Calendar modify(
       long id, String code, String name, boolean disabled, @Nullable String remark) {
-    WorkCalendar model = getExist(id);
+    Calendar model = getExist(id);
     modify(model, code, name, disabled, remark);
     return model;
   }
@@ -81,9 +81,9 @@ public class WorkCalendarDomainService {
    * @throws DomainException 工作日历代码与其它日历冲突时抛出
    */
   public void modify(
-      WorkCalendar model, String code, String name, boolean disabled, @Nullable String remark) {
+      Calendar model, String code, String name, boolean disabled, @Nullable String remark) {
     // 校验工作日历代码唯一
-    if (workCalendarRepository.isExistByCodeExcludeId(code, model.getId())) {
+    if (calendarRepository.isExistByCodeExcludeId(code, model.getId())) {
       throw new DomainException("工作日历代码" + code + "已存在!");
     }
     model.modify(code, name, disabled, remark);
@@ -92,96 +92,96 @@ public class WorkCalendarDomainService {
   /**
    * 添加常规时段
    *
-   * @param workCalendarId 工作日历Id
+   * @param calendarId 工作日历Id
    * @param dayOfWeek 星期几编码
    * @param startTime 上班时间
    * @param endTime 下班时间
    * @throws DomainException 工作日历不存在、或与已有时段重叠时抛出
    */
-  public void addSlot(
-      long workCalendarId, String dayOfWeek, LocalTime startTime, LocalTime endTime) {
-    getExist(workCalendarId).addSlot(dayOfWeek, startTime, endTime);
+  public void addAttendance(
+      long calendarId, String dayOfWeek, LocalTime startTime, LocalTime endTime) {
+    getExist(calendarId).addAttendance(dayOfWeek, startTime, endTime);
   }
 
   /**
    * 修改常规时段
    *
-   * @param workCalendarId 工作日历Id
-   * @param slotId 时段Id
+   * @param calendarId 工作日历Id
+   * @param attendanceId 时段Id
    * @param dayOfWeek 星期几编码
    * @param startTime 上班时间
    * @param endTime 下班时间
    * @throws DomainException 工作日历或时段不存在、或与其它时段重叠时抛出
    */
-  public void modifySlot(
-      long workCalendarId,
-      long slotId,
+  public void modifyAttendance(
+      long calendarId,
+      long attendanceId,
       String dayOfWeek,
       LocalTime startTime,
       LocalTime endTime) {
-    getExist(workCalendarId).modifySlot(slotId, dayOfWeek, startTime, endTime);
+    getExist(calendarId).modifyAttendance(attendanceId, dayOfWeek, startTime, endTime);
   }
 
   /**
    * 删除常规时段（逻辑删除）
    *
-   * @param workCalendarId 工作日历Id
-   * @param slotId 时段Id
+   * @param calendarId 工作日历Id
+   * @param attendanceId 时段Id
    * @throws DomainException 工作日历不存在时抛出
    */
-  public void deleteSlot(long workCalendarId, long slotId) {
-    getExist(workCalendarId).deleteSlot(slotId);
+  public void deleteAttendance(long calendarId, long attendanceId) {
+    getExist(calendarId).deleteAttendance(attendanceId);
   }
 
   /**
-   * 添加例外
+   * 添加请假
    *
-   * @param workCalendarId 工作日历Id
+   * @param calendarId 工作日历Id
    * @param name 原因
    * @param startTime 开始时间
    * @param endTime 结束时间
    * @param remark 备注（可空）
    * @throws DomainException 工作日历不存在时抛出
    */
-  public void addException(
-      long workCalendarId,
+  public void addLeave(
+      long calendarId,
       String name,
       LocalDateTime startTime,
       LocalDateTime endTime,
       @Nullable String remark) {
-    getExist(workCalendarId).addException(name, startTime, endTime, remark);
+    getExist(calendarId).addLeave(name, startTime, endTime, remark);
   }
 
   /**
-   * 修改例外
+   * 修改请假
    *
-   * @param workCalendarId 工作日历Id
-   * @param exceptionId 例外Id
+   * @param calendarId 工作日历Id
+   * @param leaveId 请假Id
    * @param name 原因
    * @param startTime 开始时间
    * @param endTime 结束时间
    * @param remark 备注（可空）
-   * @throws DomainException 工作日历或例外不存在时抛出
+   * @throws DomainException 工作日历或请假不存在时抛出
    */
-  public void modifyException(
-      long workCalendarId,
-      long exceptionId,
+  public void modifyLeave(
+      long calendarId,
+      long leaveId,
       String name,
       LocalDateTime startTime,
       LocalDateTime endTime,
       @Nullable String remark) {
-    getExist(workCalendarId).modifyException(exceptionId, name, startTime, endTime, remark);
+    getExist(calendarId).modifyLeave(leaveId, name, startTime, endTime, remark);
   }
 
   /**
-   * 删除例外（逻辑删除）
+   * 删除请假（逻辑删除）
    *
-   * @param workCalendarId 工作日历Id
-   * @param exceptionId 例外Id
+   * @param calendarId 工作日历Id
+   * @param leaveId 请假Id
    * @throws DomainException 工作日历不存在时抛出
    */
-  public void deleteException(long workCalendarId, long exceptionId) {
-    getExist(workCalendarId).deleteException(exceptionId);
+  public void deleteLeave(long calendarId, long leaveId) {
+    getExist(calendarId).deleteLeave(leaveId);
   }
 
   /**
@@ -191,8 +191,8 @@ public class WorkCalendarDomainService {
    * @return 工作日历聚合
    * @throws DomainException 工作日历不存在时抛出
    */
-  private WorkCalendar getExist(long id) {
-    WorkCalendar model = workCalendarRepository.get(id);
+  private Calendar getExist(long id) {
+    Calendar model = calendarRepository.get(id);
     if (model == null) {
       throw new DomainException("工作日历" + id + "不存在!");
     }

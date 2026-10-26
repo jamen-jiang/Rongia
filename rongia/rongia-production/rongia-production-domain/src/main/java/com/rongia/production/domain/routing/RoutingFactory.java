@@ -23,24 +23,17 @@ public class RoutingFactory {
   /**
    * 创建工艺路线
    *
-   * @param code 路线代码
    * @param name 路线名称
-   * @param version 版本号
    * @param disabled 是否禁用
    * @param remark 备注（可空）
    * @return 工艺路线聚合
-   * @throws DomainException 代码 + 版本已存在时抛出
+   * @throws DomainException 名称已存在时抛出
    */
-  public Routing create(
-      String code,
-      String name,
-      String version,
-      boolean disabled,
-      @Nullable String remark) {
-    // 校验代码 + 版本唯一
-    if (routingRepository.isExistByCodeAndVersionExcludeId(code, version)) {
-      throw new DomainException("工艺路线" + code + "的版本" + version + "已存在!");
+  public Routing create(String name, boolean disabled, @Nullable String remark) {
+    // 校验名称唯一
+    if (routingRepository.isExistByNameExcludeId(name)) {
+      throw new DomainException("工艺路线" + name + "已存在!");
     }
-    return new Routing(code, name, version, disabled, remark);
+    return new Routing(name, disabled, remark);
   }
 }

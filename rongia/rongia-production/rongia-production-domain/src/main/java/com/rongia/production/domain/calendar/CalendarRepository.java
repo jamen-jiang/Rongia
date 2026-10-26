@@ -1,4 +1,4 @@
-package com.rongia.production.domain.workcalendar;
+package com.rongia.production.domain.calendar;
 
 import com.rongia.shared.domain.repository.Repository;
 import org.jspecify.annotations.NullMarked;
@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /** 工作日历仓储接口 */
 @NullMarked
-public interface WorkCalendarRepository extends Repository<WorkCalendar> {
+public interface CalendarRepository extends Repository<Calendar> {
 
   /**
    * 按代码查询
@@ -14,7 +14,7 @@ public interface WorkCalendarRepository extends Repository<WorkCalendar> {
    * @param code 工作日历代码
    * @return 工作日历（可空），不存在返回 null
    */
-  @Nullable WorkCalendar getByCode(String code);
+  @Nullable Calendar getByCode(String code);
 
   /**
    * 判断工作日历代码是否存在

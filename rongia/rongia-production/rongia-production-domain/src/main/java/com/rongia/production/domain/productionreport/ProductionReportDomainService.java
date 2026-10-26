@@ -80,12 +80,11 @@ public class ProductionReportDomainService {
     BigDecimal minutes = resolveWorkTime(operation, goodQty, lossQty, workTime);
     workOrder.reportOperation(operation.getId(), goodQty);
     checkReportGate(workOrder, operation, goodQty);
-    // 回写：本单生效后的流水合计（现有合计 + 本单）；生产日期取建单日
+    // 回写：本单生效后的流水合计（现有合计 + 本单）
     workOrder.applyOperationTotals(
         operation.getId(),
         operation.getProducedQty().add(goodQty),
-        operation.getActualCycleTime().add(minutes),
-        LocalDateTime.now());
+        operation.getActualCycleTime().add(minutes));
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return productionReportFactory.create(
         workOrder.getId(),
@@ -126,13 +125,12 @@ public class ProductionReportDomainService {
     workOrder.unreportOperation(model.getWorkOrderOperationId());
 
     model.voidReport(moment);
-    // 回写：本单作废后的流水合计（现有合计 − 本单）；生产日期保持最近一次回写值
+    // 回写：本单作废后的流水合计（现有合计 − 本单）
     WorkOrderOperation operation = requireOperation(workOrder, model.getWorkOrderOperationId());
     workOrder.applyOperationTotals(
         operation.getId(),
         operation.getProducedQty().subtract(model.getGoodQty()),
-        operation.getActualCycleTime().subtract(model.getWorkTime()),
-        operation.getProductionDate());
+        operation.getActualCycleTime().subtract(model.getWorkTime()));
     return model;
   }
 

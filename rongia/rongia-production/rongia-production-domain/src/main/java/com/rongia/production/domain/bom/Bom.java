@@ -268,7 +268,7 @@ public class Bom extends UpdateAggregateRoot {
    *
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param routingOperationId 消耗的路线工序Id（可空）
+   * @param bomOperationId 消耗的工序行Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -278,7 +278,7 @@ public class Bom extends UpdateAggregateRoot {
   public void addLine(
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
@@ -290,7 +290,7 @@ public class Bom extends UpdateAggregateRoot {
       throw new DomainException("子件已存在于当前 BOM 中!");
     }
     bomLines.add(
-        new BomLine(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence));
+        new BomLine(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence));
   }
 
   /**
@@ -299,7 +299,7 @@ public class Bom extends UpdateAggregateRoot {
    * @param bomLineId BOM 行Id
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param routingOperationId 消耗的路线工序Id（可空）
+   * @param bomOperationId 消耗的工序行Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -310,7 +310,7 @@ public class Bom extends UpdateAggregateRoot {
       long bomLineId,
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
@@ -325,7 +325,7 @@ public class Bom extends UpdateAggregateRoot {
     if (isExistComponent(variantId, bomLineId)) {
       throw new DomainException("子件已存在于当前 BOM 中!");
     }
-    target.modify(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence);
+    target.modify(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence);
   }
 
   /**

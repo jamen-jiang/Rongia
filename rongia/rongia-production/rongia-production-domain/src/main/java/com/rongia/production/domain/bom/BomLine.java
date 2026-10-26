@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>一行只描述「生产一份 BOM 产出批量需要多少子件」——单位用量对应的是表头的
  * {@code qty}，不是 1 个父件。真正的需求量在工单下达时按「工单数量 ÷ 产出数量」与损耗率算出来，
- * 存到 {@code WorkOrderMaterial}，不在这里保存任何订单相关数据。
+ * 存到 {@code WorkOrderLine}，不在这里保存任何订单相关数据。
  *
  * <p>{@code materialId} 是子件所属的 SPU，由调用方随子件一起提交，只当「按系列查哪些 BOM 用到了它」的分组列用。
  * 物料类型不在这里存：它记在 {@code Variant} 主数据上；「子件是不是自制件」也不靠类型标签判定，而是看这个子件
@@ -54,10 +54,10 @@ public class BomLine extends BaseDeleteEntity {
   @Column(name = "VariantId", nullable = false)
   private Long variantId;
 
-  /** 消耗在哪道路线工序（可空，直接指 RoutingOperation 那一行） */
-  @Column(name = "RoutingOperationId")
+  /** 消耗在哪道工序行（可空，直接指 BomOperation 那一行） */
+  @Column(name = "BomOperationId")
   @Nullable
-  private Long routingOperationId;
+  private Long bomOperationId;
 
   /** 单位用量（生产 1 个父件消耗的子件数量） */
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
@@ -80,7 +80,7 @@ public class BomLine extends BaseDeleteEntity {
    *
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param routingOperationId 消耗的路线工序Id（可空）
+   * @param bomOperationId 消耗的工序行Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -89,12 +89,12 @@ public class BomLine extends BaseDeleteEntity {
   BomLine(
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
       int sequence) {
-    apply(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence);
+    apply(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence);
   }
 
   /**
@@ -102,7 +102,7 @@ public class BomLine extends BaseDeleteEntity {
    *
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param routingOperationId 消耗的路线工序Id（可空）
+   * @param bomOperationId 消耗的工序行Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -111,12 +111,12 @@ public class BomLine extends BaseDeleteEntity {
   void modify(
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
       int sequence) {
-    apply(materialId, variantId, routingOperationId, qty, lossRate, unitId, sequence);
+    apply(materialId, variantId, bomOperationId, qty, lossRate, unitId, sequence);
   }
 
   /**
@@ -161,7 +161,7 @@ public class BomLine extends BaseDeleteEntity {
    *
    * @param materialId 子件SPU
    * @param variantId 子件SKU
-   * @param routingOperationId 消耗的路线工序Id（可空）
+   * @param bomOperationId 消耗的工序行Id（可空）
    * @param qty 单位用量
    * @param lossRate 损耗率（百分比）
    * @param unitId 单位Id
@@ -171,7 +171,7 @@ public class BomLine extends BaseDeleteEntity {
   private void apply(
       long materialId,
       long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal qty,
       BigDecimal lossRate,
       long unitId,
@@ -197,7 +197,7 @@ public class BomLine extends BaseDeleteEntity {
 
     this.materialId = materialId;
     this.variantId = variantId;
-    this.routingOperationId = routingOperationId;
+    this.bomOperationId = bomOperationId;
     this.qty = qty;
     this.lossRate = lossRate;
     this.unitId = unitId;

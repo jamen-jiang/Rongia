@@ -4,10 +4,12 @@ import com.rongia.production.domain.bom.Bom;
 import com.rongia.production.domain.bom.BomLine;
 import com.rongia.production.domain.bom.BomRepository;
 import com.rongia.production.domain.bom.BomTypeEnum;
+import com.rongia.production.domain.bomoperation.BomOperation;
+import com.rongia.production.domain.bomoperation.BomOperationParentTypeEnum;
+import com.rongia.production.domain.bomoperation.BomOperationRepository;
 import com.rongia.production.domain.operation.Operation;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.routing.Routing;
-import com.rongia.production.domain.routing.RoutingOperation;
 import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.workcenter.WorkCenter;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
@@ -54,6 +56,9 @@ public class WorkOrderDomainService {
   /** 工作中心仓储 */
   private final WorkCenterRepository workCenterRepository;
 
+  /** 工序行仓储 */
+  private final BomOperationRepository bomOperationRepository;
+
   /**
    * 构造器注入
    *
@@ -63,6 +68,7 @@ public class WorkOrderDomainService {
    * @param routingRepository 工艺路线仓储
    * @param operationRepository 工序仓储
    * @param workCenterRepository 工作中心仓储
+   * @param bomOperationRepository 工序行仓储
    */
   public WorkOrderDomainService(
       WorkOrderFactory workOrderFactory,
@@ -70,13 +76,15 @@ public class WorkOrderDomainService {
       BomRepository bomRepository,
       RoutingRepository routingRepository,
       OperationRepository operationRepository,
-      WorkCenterRepository workCenterRepository) {
+      WorkCenterRepository workCenterRepository,
+      BomOperationRepository bomOperationRepository) {
     this.workOrderFactory = workOrderFactory;
     this.workOrderRepository = workOrderRepository;
     this.bomRepository = bomRepository;
     this.routingRepository = routingRepository;
     this.operationRepository = operationRepository;
     this.workCenterRepository = workCenterRepository;
+    this.bomOperationRepository = bomOperationRepository;
   }
 
   /**
@@ -90,7 +98,7 @@ public class WorkOrderDomainService {
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param startTime 开工时间（可空，排产时填计划，照 Odoo 的 date_start 语义）
+   * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param unitId 单位Id
    * @param pickingTypeId 操作类型Id
    * @param srcWarehouseId 发料仓库Id
@@ -252,8 +260,7 @@ public class WorkOrderDomainService {
       throw new DomainException("工艺路线" + resolvedRoutingId + "不存在!");
     }
     if (Boolean.TRUE.equals(routing.getDisabled())) {
-      throw new DomainException(
-          "工艺路线" + routing.getCode() + "版本" + routing.getVersion() + "已禁用，不能用于下达工单");
+      throw new DomainException("工艺路线" + routing.getName() + "已禁用，不能用于下达工单");
     }
 
     // 3. 先全量校验外部引用，确认能装配再动手
@@ -268,14 +275,16 @@ public class WorkOrderDomainService {
           snapshot.workCenterId(),
           snapshot.workCenterName(),
           snapshot.cycleTime(),
+          snapshot.batchSize(),
+          snapshot.hourlyRate(),
           snapshot.sequence());
     }
     for (MaterialRequirement requirement : requirements) {
-      model.addMaterial(
+      model.addLine(
           requirement.bomLineId(),
           requirement.materialId(),
           requirement.variantId(),
-          requirement.routingOperationId(),
+          requirement.bomOperationId(),
           requirement.requiredQty(),
           requirement.unitId());
     }
@@ -294,14 +303,11 @@ public class WorkOrderDomainService {
    * @param model 已下达的工单
    */
   private void scheduleOperations(WorkOrder model) {
-    LocalDateTime cursor = model.getStartTime();
+    LocalDateTime cursor = model.getPlannedStartTime();
     if (cursor == null) {
       return;
     }
     for (WorkOrderOperation operation : model.getWorkOrderOperations()) {
-      if (operation.isSkipped()) {
-        continue;
-      }
       LocalDateTime end =
           cursor.plusMinutes(
               operation.estimatedMinutes(model.getQty()).longValue());
@@ -344,25 +350,26 @@ public class WorkOrderDomainService {
   /**
    * 解析工艺路线，得到可直接快照成工单工序的行
    *
-   * <p>工序名、工作中心名、工时与计算方式全部冗余存一份：路线或工序主数据后续改名改配置，
+   * <p>工序名、工作中心名、工时、批量与费率全部冗余存一份：路线或工序主数据后续改名改配置，
    * 在制工单不受影响。这里先跑完整条路线再返回，任何一行引用失效都会在任何工序进工单之前抛出来。
    *
    * @param routing 工艺路线
    * @return 有序、可装配的工序快照列表
-   * @throws DomainException 引用的工序、工作中心或费率卡不可用、或工序顺序重复时抛出
+   * @throws DomainException 引用的工序或工作中心不可用、或工序顺序重复时抛出
    */
   private List<OperationSnapshot> resolveOperations(Routing routing) {
-    List<RoutingOperation> items =
-        routing.getRoutingOperations().stream()
-            .filter(o -> !o.getIsDeleted())
-            .sorted(Comparator.comparing(RoutingOperation::getSequence))
+    List<BomOperation> items =
+        bomOperationRepository
+            .listByParent(BomOperationParentTypeEnum.ROUTING.getCode(), routing.getId())
+            .stream()
+            .sorted(Comparator.comparing(BomOperation::getSequence))
             .toList();
     Set<Integer> sequences = new HashSet<>();
     List<OperationSnapshot> result = new ArrayList<>(items.size());
-    for (RoutingOperation item : items) {
+    for (BomOperation item : items) {
       if (!sequences.add(item.getSequence())) {
         throw new DomainException(
-            "工艺路线" + routing.getCode() + "的工序顺序" + item.getSequence() + "重复!");
+            "工艺路线" + routing.getName() + "的工序顺序" + item.getSequence() + "重复!");
       }
       Operation operation = operationRepository.get(item.getOperationId());
       if (operation == null) {
@@ -379,6 +386,8 @@ public class WorkOrderDomainService {
               workCenter.getId(),
               workCenter.getName(),
               item.getCycleTime(),
+              item.getBatchSize(),
+              item.getHourlyRate(),
               item.getSequence()));
     }
     return List.copyOf(result);
@@ -453,7 +462,7 @@ public class WorkOrderDomainService {
               line.getId(),
               line.getMaterialId(),
               line.getVariantId(),
-              line.getRoutingOperationId(),
+              line.getBomOperationId(),
               required,
               line.getUnitId()));
     }
@@ -483,9 +492,9 @@ public class WorkOrderDomainService {
             existing.bomLineId() == null ? item.bomLineId() : existing.bomLineId(),
             existing.materialId(),
             existing.variantId(),
-            existing.routingOperationId() == null
-                ? item.routingOperationId()
-                : existing.routingOperationId(),
+            existing.bomOperationId() == null
+                ? item.bomOperationId()
+                : existing.bomOperationId(),
             existing.requiredQty().add(item.requiredQty()),
             existing.unitId()));
   }
@@ -497,14 +506,16 @@ public class WorkOrderDomainService {
       Long workCenterId,
       String workCenterName,
       BigDecimal cycleTime,
+      BigDecimal batchSize,
+      BigDecimal hourlyRate,
       Integer sequence) {}
 
-  /** 待装配的用料需求，字段与 {@link WorkOrder#addMaterial} 一一对应 */
+  /** 待装配的用料需求，字段与 {@link WorkOrder#addLine} 一一对应 */
   record MaterialRequirement(
       @Nullable Long bomLineId,
       Long materialId,
       Long variantId,
-      @Nullable Long routingOperationId,
+      @Nullable Long bomOperationId,
       BigDecimal requiredQty,
       Long unitId) {}
 }

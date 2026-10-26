@@ -281,7 +281,7 @@ public class BomDomainService {
       model.addLine(
           line.getMaterialId(),
           line.getVariantId(),
-          line.getRoutingOperationId(),
+          line.getBomOperationId(),
           line.getQty(),
           line.getLossRate(),
           line.getUnitId(),
@@ -358,7 +358,7 @@ public class BomDomainService {
             id,
             data.materialId(),
             data.variantId(),
-            data.routingOperationId(),
+            data.bomOperationId(),
             data.qty(),
             data.lossRate(),
             data.unitId(),
@@ -368,7 +368,7 @@ public class BomDomainService {
         bom.addLine(
             data.materialId(),
             data.variantId(),
-            data.routingOperationId(),
+            data.bomOperationId(),
             data.qty(),
             data.lossRate(),
             data.unitId(),

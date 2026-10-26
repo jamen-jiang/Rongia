@@ -9,32 +9,29 @@ import org.jspecify.annotations.Nullable;
 public interface RoutingRepository extends Repository<Routing> {
 
   /**
-   * 按代码 + 版本查询
+   * 按名称查询
    *
-   * @param code 工艺路线代码
-   * @param version 版本号
+   * @param name 路线名称
    * @return 工艺路线（可空），不存在返回 null
    */
-  @Nullable Routing getByCodeAndVersion(String code, String version);
+  @Nullable Routing getByName(String name);
 
   /**
-   * 判断代码 + 版本是否存在
+   * 判断名称是否已被占用
    *
-   * @param code 工艺路线代码
-   * @param version 版本号
+   * @param name 路线名称
    * @param id 排除的工艺路线Id（可空，新增时传 null）
    * @return true 表示已存在
    */
-  boolean isExistByCodeAndVersionExcludeId(String code, String version, @Nullable Long id);
+  boolean isExistByNameExcludeId(String name, @Nullable Long id);
 
   /**
-   * 判断代码 + 版本是否存在
+   * 判断名称是否已被占用
    *
-   * @param code 工艺路线代码
-   * @param version 版本号
+   * @param name 路线名称
    * @return true 表示已存在
    */
-  default boolean isExistByCodeAndVersionExcludeId(String code, String version) {
-    return isExistByCodeAndVersionExcludeId(code, version, null);
+  default boolean isExistByNameExcludeId(String name) {
+    return isExistByNameExcludeId(name, null);
   }
 }

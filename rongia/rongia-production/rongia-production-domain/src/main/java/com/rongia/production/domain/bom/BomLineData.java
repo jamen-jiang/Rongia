@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param materialId 子件SPU
  * @param variantId 子件SKU
- * @param routingOperationId 消耗的路线工序Id（可空）
+ * @param bomOperationId 消耗的工序行Id（可空）
  * @param qty 单位用量（生产 1 个父件消耗的子件数量）
  * @param lossRate 损耗率（百分比，传 0 表示无损耗）
  * @param unitId 单位Id
@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 public record BomLineData(
     Long materialId,
     Long variantId,
-    @Nullable Long routingOperationId,
+    @Nullable Long bomOperationId,
     BigDecimal qty,
     BigDecimal lossRate,
     Long unitId,

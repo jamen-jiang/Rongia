@@ -18,7 +18,7 @@ public enum WorkOrderStatusEnum implements BaseEnum {
   /** 生产中：至少一道工序已开工 */
   IN_PROGRESS("InProgress", "生产中"),
 
-  /** 已完工：每道工序都收了尾（已完工或已跳过），或产出与报废凑够计划数量后手工结单 */
+  /** 已完工：每道工序都已完工，或产出与报废凑够计划数量后手工结单 */
   COMPLETED("Completed", "已完工"),
 
   /** 已关闭：财务/库存已结案，不再允许变更 */

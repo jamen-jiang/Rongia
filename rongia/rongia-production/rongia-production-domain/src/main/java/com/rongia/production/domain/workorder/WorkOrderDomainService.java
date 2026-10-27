@@ -85,16 +85,17 @@ public class WorkOrderDomainService {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
+   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
    * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param plannedStartTime 计划开工时间（可空，排产时填）
+   * @param startTime 计划开工时间（可空，排产时填）
+   * @param qty 计划数量
    * @param unitId 单位Id
    * @param srcLocationId 发料库位Id
    * @param destLocationId 成品收货库位Id
-
    * @param remark 备注（可空）
    * @return 工单聚合
    */
@@ -141,16 +142,17 @@ public class WorkOrderDomainService {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
+   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
    * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
+   * @param startTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param srcLocationId 发料库位Id
    * @param destLocationId 成品收货库位Id
-
    * @param remark 备注（可空）
    * @return 工单聚合
    * @throws DomainException 工单不存在、非草稿状态时抛出

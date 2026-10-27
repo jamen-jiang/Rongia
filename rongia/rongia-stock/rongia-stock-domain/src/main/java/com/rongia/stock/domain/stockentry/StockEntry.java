@@ -43,7 +43,7 @@ import org.jspecify.annotations.Nullable;
  * <p>撤销走红冲，不是翻状态：过过账的原单从此冻住，照它开一张同方向、数量取负的红字单，用
  * {@code reversalOfStockEntryId} 指回原单，两张加一块是零。原单上不另存「已红冲」——那是查得出来的事实，存一列
  * 迟早对不上。冲也分次：一张单今天冲 20、过两天再冲 10，红字单挑哪几行、各冲多少由开单的人定，只要同一
- * 原单上同一位置累计不超过它当初记的量。只有还没过账的草稿才配作废：它一分货没动，没有要冲的东西。
+ * 原单上同一位置累计不超过它当初记的量。只有还没过账的草稿才配取消：它一分货没动，没有要冲的东西。
  *
  * <p>库存加减不在这里：过账这一步的入库、出库由应用层调 {@code StockDomainService} 按行执行，本聚合只保证
  * 这张单自身说得清。红字单过不去账（比如成品仓不够）就停在草稿挂着，等人先处理下游那张单。
@@ -85,15 +85,15 @@ public class StockEntry extends OrderAggregateRoot {
   @Nullable
   private String sourceNumber;
 
-  /** 状态：草稿、已提交 */
+  /** 状态：草稿、完成、已取消 */
   @Nationalized
   @Column(name = "Status", nullable = false, length = 50)
   private String status;
 
-  /** 提交时间（可空，转入已提交时写入） */
-  @Column(name = "SubmittedTime")
+  /** 过账时间（可空，转入完成时写入，照 Odoo 的 date_done） */
+  @Column(name = "DoneTime")
   @Nullable
-  private LocalDateTime submittedTime;
+  private LocalDateTime doneTime;
 
   /** 被冲的原单Id（可空，非空即本单是红字单） */
   @Column(name = "ReversalOfStockEntryId")
@@ -165,7 +165,7 @@ public class StockEntry extends OrderAggregateRoot {
   /**
    * 添加库存单据行（仅草稿可加）
    *
-   * <p>带符号数量只在这一个入口检查：负数等于「把一笔已提交的账倒回来」，所以只有红字单开得出来，普通单据要撤销
+   * <p>带符号数量只在这一个入口检查：负数等于「把一笔已过账的账倒回来」，所以只有红字单开得出来，普通单据要撤销
    * 得走红冲，不能自己填个负数；反过来红字单也不许填正数，它的量永远是往回冲的。开红字单的人只填「要冲掉多少」，
    * 那个负号由领域服务落。
    *
@@ -186,7 +186,7 @@ public class StockEntry extends OrderAggregateRoot {
       @Nullable String remark) {
     ensureDraft();
     if (this.reversalOfStockEntryId == null && qty.signum() < 0) {
-      throw new DomainException("只有红字单能开负数数量，要撤销已提交的单请走红冲");
+      throw new DomainException("只有红字单能开负数数量，要撤销已过账的单请走红冲");
     }
     if (this.reversalOfStockEntryId != null && qty.signum() > 0) {
       throw new DomainException("红字单的数量要往回冲，正数请开普通单");
@@ -200,20 +200,33 @@ public class StockEntry extends OrderAggregateRoot {
   }
 
   /**
-   * 提交：单据转入已提交并记下提交时间
+   * 过账：单据转入完成并记下过账时间
    *
    * <p>按行加减库存那一下由应用层在同一个事务里调库存服务完成，本方法只把单据落定，避免同一张单重复动账。
    *
-   * @param time 提交时间
+   * @param time 过账时间
    * @throws DomainException 非草稿状态、或单内没有行时抛出
    */
-  public void submit(LocalDateTime time) {
+  public void post(LocalDateTime time) {
     ensureDraft();
     if (stockEntryLines.isEmpty()) {
       throw new DomainException("库存单据没有行，不能过账");
     }
-    this.status = StockEntryStatusEnum.SUBMITTED.getCode();
-    this.submittedTime = time;
+    this.status = StockEntryStatusEnum.DONE.getCode();
+    this.doneTime = time;
+  }
+
+  /**
+   * 取消：草稿作废，单据转入已取消
+   *
+   * <p>只有还没过账的单才配取消：它一分货没动，没有要冲的东西。已完成的原单永远停在完成，
+   * 要撤销走红冲。取消不删记录——留着说明「有人开过这张单、后来作废了」。
+   *
+   * @throws DomainException 非草稿状态时抛出
+   */
+  public void cancel() {
+    ensureDraft();
+    this.status = StockEntryStatusEnum.CANCELLED.getCode();
   }
 
   /**
@@ -226,12 +239,21 @@ public class StockEntry extends OrderAggregateRoot {
   }
 
   /**
-   * 是否已提交
+   * 是否已完成（已过账）
    *
-   * @return true 表示已提交
+   * @return true 表示完成
    */
   public boolean isSubmitted() {
-    return StockEntryStatusEnum.SUBMITTED.getCode().equals(this.status);
+    return StockEntryStatusEnum.DONE.getCode().equals(this.status);
+  }
+
+  /**
+   * 是否已取消
+   *
+   * @return true 表示已取消
+   */
+  public boolean isCancelled() {
+    return StockEntryStatusEnum.CANCELLED.getCode().equals(this.status);
   }
 
   /**
@@ -290,11 +312,11 @@ public class StockEntry extends OrderAggregateRoot {
   /**
    * 校验单据仍处于草稿
    *
-   * @throws DomainException 已提交时抛出
+   * @throws DomainException 已完成或已取消时抛出
    */
   private void ensureDraft() {
-    if (isSubmitted()) {
-      throw new DomainException("库存单据已提交，不能再修改");
+    if (!isDraft()) {
+      throw new DomainException("库存单据已过账或已取消，不能再修改");
     }
   }
 

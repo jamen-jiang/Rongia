@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * <p>类型不用人选：开单时按行上的库位推出编码（出库库位+入库库位都填是调拨、只填出库库位是出库、只填入库库位是
  * 入库），再按编码反查类型表里的标准行落到单头上——ERPNext 的 {@code make_stock_entry} 原样照搬的链路。
  * 来源单据可空——系统照业务单生成的单子带来源，车间手工开的单不填。红冲是唯一能凭空开出一张单据的动作，
- * 而它也只能照着已提交的原单开——挑原单上的行，照它的位置，数量取负，类型照抄原单，冲多少由开单的人定。
+ * 而它也只能照着已完成的原单开——挑原单上的行，照它的位置，数量取负，类型照抄原单，冲多少由开单的人定。
  *
  * <p>库存加减不在这里：过账这一步按行调 {@code StockDomainService} 入库或出库，由应用层编排，本模块只保证
  * 单据自己那半落定。红字单也一样，开出来先是草稿：过不过得去账取决于库里还有没有货，过不去就让它停在草稿挂着，
@@ -116,23 +116,36 @@ public class StockEntryDomainService {
   }
 
   /**
-   * 提交：单据转入已提交
+   * 过账：单据转入完成
    *
    * <p>按行加减库存由应用层在同一个事务里完成，本方法只把单据落定。
    *
    * @param id 库存单据Id
-   * @param time 提交时间
+   * @param time 过账时间
    * @return 库存单据聚合
-   * @throws DomainException 单据不存在、已提交、或单内没有行时抛出
+   * @throws DomainException 单据不存在、已过账、或单内没有行时抛出
    */
-  public StockEntry submit(long id, LocalDateTime time) {
+  public StockEntry post(long id, LocalDateTime time) {
     StockEntry model = getExist(id);
-    model.submit(time);
+    model.post(time);
     return model;
   }
 
   /**
-   * 红冲：照已提交的原单开一张红字单，只冲指定的几行几量
+   * 取消：草稿作废，单据转入已取消
+   *
+   * @param id 库存单据Id
+   * @return 库存单据聚合
+   * @throws DomainException 单据不存在、或已过账/已取消时抛出
+   */
+  public StockEntry cancel(long id) {
+    StockEntry model = getExist(id);
+    model.cancel();
+    return model;
+  }
+
+  /**
+   * 红冲：照已完成的原单开一张红字单，只冲指定的几行几量
    *
    * <p>原单不动：它当初真的动过库存，改它等于把这笔账抹掉。红字单挑原单上的行、照它的位置、数量取负、类型
    * 照抄原单、指回原单。一次只冲一部分也行——同一张原单能开好几张红字单，今天冲 20、过两天再冲 10。

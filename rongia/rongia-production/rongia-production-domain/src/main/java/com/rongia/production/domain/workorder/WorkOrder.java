@@ -837,7 +837,6 @@ public class WorkOrder extends OrderAggregateRoot {
     }
     this.srcLocationId = srcLocationId;
     this.destLocationId = destLocationId;
-    this.priority = EnumUtils.getCode(PriorityEnum.class, priority, "优先级");
     this.remark = remark;
   }
 

@@ -92,8 +92,8 @@ public class WorkOrderDomainService {
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
 
    * @param remark 备注（可空）
    * @return 工单聚合
@@ -111,8 +111,8 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return workOrderFactory.create(
@@ -128,8 +128,8 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        srcWarehouseId,
-        destWarehouseId,
+        srcLocationId,
+        destLocationId,
         remark,
         "");
   }
@@ -148,8 +148,8 @@ public class WorkOrderDomainService {
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
 
    * @param remark 备注（可空）
    * @return 工单聚合
@@ -169,8 +169,8 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark) {
     WorkOrder model = getExist(id);
     model.modify(
@@ -186,8 +186,8 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        srcWarehouseId,
-        destWarehouseId,
+        srcLocationId,
+        destLocationId,
         remark);
     return model;
   }

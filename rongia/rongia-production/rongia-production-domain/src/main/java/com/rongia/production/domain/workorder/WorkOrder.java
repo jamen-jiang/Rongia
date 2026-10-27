@@ -132,13 +132,13 @@ public class WorkOrder extends OrderAggregateRoot {
   @Column(name = "UnitId", nullable = false)
   private Long unitId;
 
-  /** 发料仓库Id（照 Odoo 的 location_src_id，必填）：领料从这里出 */
-  @Column(name = "SrcWarehouseId", nullable = false)
-  private Long srcWarehouseId;
+  /** 发料库位Id（照 Odoo 的 location_src_id，必填）：领料从这里出 */
+  @Column(name = "SrcLocationId", nullable = false)
+  private Long srcLocationId;
 
-  /** 成品收货仓库Id（照 Odoo 的 location_dest_id，必填）：完工进这里 */
-  @Column(name = "DestWarehouseId", nullable = false)
-  private Long destWarehouseId;
+  /** 成品收货库位Id（照 Odoo 的 location_dest_id，必填）：完工进这里 */
+  @Column(name = "DestLocationId", nullable = false)
+  private Long destLocationId;
 
   /** 状态编码，取值见 {@link WorkOrderStatusEnum} */
   @Nationalized
@@ -184,8 +184,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
    * @param remark 备注（可空）
    * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
    */
@@ -202,8 +202,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark,
       String number) {
     super(number);
@@ -220,8 +220,8 @@ public class WorkOrder extends OrderAggregateRoot {
         plannedStartTime,
         qty,
         unitId,
-        srcWarehouseId,
-        destWarehouseId,
+        srcLocationId,
+        destLocationId,
         remark);
     this.status = WorkOrderStatusEnum.DRAFT.getCode();
   }
@@ -295,8 +295,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态时抛出
    */
@@ -313,8 +313,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark) {
     if (!isDraft()) {
       throw new DomainException("工单已下达，不能再修改");
@@ -332,8 +332,8 @@ public class WorkOrder extends OrderAggregateRoot {
         plannedStartTime,
         qty,
         unitId,
-        srcWarehouseId,
-        destWarehouseId,
+        srcLocationId,
+        destLocationId,
         remark);
   }
 
@@ -776,8 +776,8 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param plannedStartTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
    * @param remark 备注（可空）
    * @throws DomainException SPU、SKU、数量、单位、来源类型非法，或开工时间晚于交期时抛出
    */
@@ -794,8 +794,8 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime plannedStartTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark) {
     if (materialId <= 0) {
       throw new DomainException("产出SPU不能为空");
@@ -829,14 +829,14 @@ public class WorkOrder extends OrderAggregateRoot {
     this.routingId = routingId;
     this.deliveryTime = deliveryTime;
     this.plannedStartTime = plannedStartTime;
-    if (srcWarehouseId <= 0) {
-      throw new DomainException("发料仓库不能为空");
+    if (srcLocationId <= 0) {
+      throw new DomainException("发料库位不能为空");
     }
-    if (destWarehouseId <= 0) {
-      throw new DomainException("成品收货仓库不能为空");
+    if (destLocationId <= 0) {
+      throw new DomainException("成品收货库位不能为空");
     }
-    this.srcWarehouseId = srcWarehouseId;
-    this.destWarehouseId = destWarehouseId;
+    this.srcLocationId = srcLocationId;
+    this.destLocationId = destLocationId;
     this.priority = EnumUtils.getCode(PriorityEnum.class, priority, "优先级");
     this.remark = remark;
   }

@@ -31,17 +31,17 @@
         <!-- 2. 库存上下文                                -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-inventory-application</artifactId>
+            <artifactId>rongia-stock-application</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-inventory-adapter</artifactId>
+            <artifactId>rongia-stock-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-inventory-infrastructure</artifactId>
+            <artifactId>rongia-stock-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- 3. 基础资料上下文                            -->

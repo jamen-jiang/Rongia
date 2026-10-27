@@ -17,7 +17,7 @@
          本模块只做目录分组与聚合，不含任何依赖声明。
          四个共享模块的 parent 指向本模块，继承链为：
              rongia-shared-*  ->  rongia-shared  ->  rongia  ->  spring-boot-starter-parent
-         结构与 rongia-basedata / rongia-inventory / rongia-production /
+         结构与 rongia-basedata / rongia-stock / rongia-production /
          rongia-sales 四个业务上下文完全一致。
          ========================================================== -->
     <modules>

@@ -12,7 +12,6 @@ import com.rongia.production.domain.bom.BomFactory;
 import com.rongia.production.domain.bom.BomLineData;
 import com.rongia.production.domain.bom.BomRepository;
 import com.rongia.production.domain.bom.BomTypeEnum;
-import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
@@ -37,8 +36,7 @@ class WorkOrderDomainServiceTest {
           bomRepository,
           mock(RoutingRepository.class),
           mock(OperationRepository.class),
-          mock(WorkCenterRepository.class),
-          mock(RoutingRepository.class));
+          mock(WorkCenterRepository.class));
 
   /** 造一张 BOM，用给定的类型与产出数量 */
   private Bom bom(String type, String qty, BomLineData... lines) {
@@ -47,17 +45,12 @@ class WorkOrderDomainServiceTest {
             .create(
                 type,
                 null,
-                "V1",
                 /* materialId */ 1L,
                 /* variantId */ 1L,
                 /* routingId */ null,
                 new BigDecimal(qty),
                 UNIT,
-                "AllAvailable",
-                "Strict",
-                0,
-                0,
-                null,
+                false,
                 false,
                 null);
     for (BomLineData line : lines) {
@@ -158,17 +151,12 @@ class WorkOrderDomainServiceTest {
             .create(
                 BomTypeEnum.NORMAL.getCode(),
                 null,
-                "V1",
                 1L,
                 1L,
                 null,
                 BigDecimal.ONE,
                 UNIT,
-                "AllAvailable",
-                "Strict",
-                0,
-                0,
-                null,
+                false,
                 false,
                 null);
     root.addLine(9L, 9L, null, BigDecimal.ONE, BigDecimal.ZERO, 2L, 1);

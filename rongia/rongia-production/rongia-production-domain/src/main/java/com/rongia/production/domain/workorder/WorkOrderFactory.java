@@ -36,8 +36,8 @@ public class WorkOrderFactory {
    * @param startTime 开工时间（可空，排产时填计划，照 Odoo 的 date_start 语义)
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcWarehouseId 发料仓库Id
-   * @param destWarehouseId 成品收货仓库Id
+   * @param srcLocationId 发料库位Id
+   * @param destLocationId 成品收货库位Id
 
    * @param remark 备注（可空）
    * @param number 工单号（传空串表示由 OrderAddedEvent 的监听器分配）
@@ -57,8 +57,8 @@ public class WorkOrderFactory {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcWarehouseId,
-      long destWarehouseId,
+      long srcLocationId,
+      long destLocationId,
       @Nullable String remark,
       String number) {
     // 单号非空时才校验唯一，空串代表尚未分配
@@ -78,8 +78,8 @@ public class WorkOrderFactory {
         startTime,
         qty,
         unitId,
-        srcWarehouseId,
-        destWarehouseId,
+        srcLocationId,
+        destLocationId,
         remark,
         number);
   }

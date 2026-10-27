@@ -21,7 +21,7 @@
         <module>rongia-shared</module>
         <module>rongia-system</module>
         <module>rongia-basedata</module>
-        <module>rongia-inventory</module>
+        <module>rongia-stock</module>
         <module>rongia-production</module>
         <module>rongia-sales</module>
     </modules>

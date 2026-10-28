@@ -40,8 +40,7 @@ import org.jspecify.annotations.Nullable;
       @Index(name = "IX_WorkOrderTracking_WorkOrderId", columnList = "WorkOrderId"),
       @Index(
           name = "IX_WorkOrderTracking_WorkOrderOperationId",
-          columnList = "WorkOrderOperationId"),
-      @Index(name = "IX_WorkOrderTracking_OperatorId", columnList = "OperatorId")
+          columnList = "WorkOrderOperationId")
     })
 public class WorkOrderTracking extends UpdateAggregateRoot {
 
@@ -76,11 +75,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
   @Column(name = "WorkCenterName", nullable = false, length = 100)
   private String workCenterName;
 
-  /** 操作人Id（可空，默认沿用工序开工时记的人） */
-  @Column(name = "OperatorId")
-  @Nullable
-  private Long operatorId;
-
   /** 本次工时（分钟，不填则按工序标准时间派生） */
   @Column(name = "WorkTime", nullable = false, precision = 18, scale = 2)
   private BigDecimal workTime;
@@ -114,7 +108,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
    * @param operationName 工序名称（快照）
    * @param workCenterId 工作中心Id（快照）
    * @param workCenterName 工作中心名称（快照）
-   * @param operatorId 操作人Id（可空）
    * @param workTime 本次工时（分钟）
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
@@ -128,7 +121,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
       String operationName,
       long workCenterId,
       String workCenterName,
-      @Nullable Long operatorId,
       BigDecimal workTime,
       BigDecimal goodQty,
       BigDecimal lossQty,
@@ -141,7 +133,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
         operationName,
         workCenterId,
         workCenterName,
-        operatorId,
         workTime,
         goodQty,
         lossQty,
@@ -196,7 +187,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
    * @param operationName 工序名称（快照）
    * @param workCenterId 工作中心Id（快照）
    * @param workCenterName 工作中心名称（快照）
-   * @param operatorId 操作人Id（可空）
    * @param workTime 本次工时（分钟）
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
@@ -211,7 +201,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
       String operationName,
       long workCenterId,
       String workCenterName,
-      @Nullable Long operatorId,
       BigDecimal workTime,
       BigDecimal goodQty,
       BigDecimal lossQty,
@@ -260,7 +249,6 @@ public class WorkOrderTracking extends UpdateAggregateRoot {
     this.operationName = trimmedOperationName;
     this.workCenterId = workCenterId;
     this.workCenterName = trimmedWorkCenterName;
-    this.operatorId = operatorId;
     this.workTime = workTime;
     this.goodQty = goodQty;
     this.lossQty = lossQty;

@@ -18,7 +18,6 @@ public class WorkOrderTrackingFactory {
    * @param operationName 工序名称（快照）
    * @param workCenterId 工作中心Id（快照）
    * @param workCenterName 工作中心名称（快照）
-   * @param operatorId 操作人Id（可空）
    * @param workTime 本次工时（分钟）
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
@@ -33,7 +32,6 @@ public class WorkOrderTrackingFactory {
       String operationName,
       long workCenterId,
       String workCenterName,
-      @Nullable Long operatorId,
       BigDecimal workTime,
       BigDecimal goodQty,
       BigDecimal lossQty,
@@ -46,7 +44,6 @@ public class WorkOrderTrackingFactory {
         operationName,
         workCenterId,
         workCenterName,
-        operatorId,
         workTime,
         goodQty,
         lossQty,

@@ -93,7 +93,6 @@ public class WorkOrderTrackingDomainService {
         operation.getOperationName(),
         operation.getWorkCenterId(),
         operation.getWorkCenterName(),
-        null,
         minutes,
         goodQty,
         lossQty,

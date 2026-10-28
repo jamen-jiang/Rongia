@@ -33,20 +33,21 @@ import org.jspecify.annotations.Nullable;
  * 库存单据（一次库存动账）
  *
  * <p>领料、完工入库、调拨、报废——仓里发生的每一种动作都是这一张单：开单时从头上的「单据类型」里挑一个种类
- * （类型编码按行上的仓自动推出来，类型行在 {@code StockEntryType} 表里），行上填哪个 SKU、从哪个仓到哪个仓，过账后仓里的数就变了。
+ * （类型编码按行上的库位自动推出来，类型行在 {@code StockEntryType} 表里），行上填哪个 SKU、从哪个库位到哪个库位，过账后库位上的数就变了。
  * 类型做成配置表而不是把业务各建一张单，加一种「报废出库」是运行时多一行配置的事，表结构和代码都不用动
  * （ERPNext 的 {@code Stock Entry} + {@code Stock Entry Type} 就是这个形状）。
  *
  * <p>来源单据是可选的：系统照着业务单（工单、报工单）生成的单子带来源，指回「是哪张单让我动的」；车间现场
- * 手工开的单没有来源，三列留空。三个来源列要么全填、要么全空，半填等于说不清缘由。
+ * 手工开的单没有来源，三列留空。来源类型填了就一定带来源单据Id——没有Id就查不回是哪张单让这批货动的。
  *
  * <p>撤销走红冲，不是翻状态：过过账的原单从此冻住，照它开一张同方向、数量取负的红字单，用
- * {@code reversalOfStockEntryId} 指回原单，两张加一块是零。原单上不另存「已红冲」——那是查得出来的事实，存一列
+ * {@code reversalOfStockEntryId} 指回原单，两张加一块是零；红字单的行再用 {@code reversalOfStockEntryLineId} 指回
+ * 原单上被冲的那一行，一行一行认得清楚。原单上不另存「已红冲」——那是查得出来的事实，存一列
  * 迟早对不上。冲也分次：一张单今天冲 20、过两天再冲 10，红字单挑哪几行、各冲多少由开单的人定，只要同一
  * 原单上同一位置累计不超过它当初记的量。只有还没过账的草稿才配取消：它一分货没动，没有要冲的东西。
  *
  * <p>库存加减不在这里：过账这一步的入库、出库由应用层调 {@code StockDomainService} 按行执行，本聚合只保证
- * 这张单自身说得清。红字单过不去账（比如成品仓不够）就停在草稿挂着，等人先处理下游那张单。
+ * 这张单自身说得清。红字单过不去账（比如成品库位不够）就停在草稿挂着，等人先处理下游那张单。
  */
 @NullMarked
 @Getter
@@ -174,6 +175,7 @@ public class StockEntry extends OrderAggregateRoot {
    * @param qty 数量（普通单为正，红字单为负）
    * @param outboundLocationId 出库库位Id（可空，与入库库位至少填一个）
    * @param inboundLocationId 入库库位Id（可空，与出库库位至少填一个）
+   * @param reversalOfStockEntryLineId 被冲的原行Id（可空，红字行必填、普通行传 null）
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态、正负号与本单性质不符、或同一流转已在单内时抛出
    */
@@ -183,6 +185,7 @@ public class StockEntry extends OrderAggregateRoot {
       BigDecimal qty,
       @Nullable Long outboundLocationId,
       @Nullable Long inboundLocationId,
+      @Nullable Long reversalOfStockEntryLineId,
       @Nullable String remark) {
     ensureDraft();
     if (this.reversalOfStockEntryId == null && qty.signum() < 0) {
@@ -191,12 +194,24 @@ public class StockEntry extends OrderAggregateRoot {
     if (this.reversalOfStockEntryId != null && qty.signum() > 0) {
       throw new DomainException("红字单的数量要往回冲，正数请开普通单");
     }
+    if (this.reversalOfStockEntryId != null && reversalOfStockEntryLineId == null) {
+      throw new DomainException("红字行要指回被冲的原行!");
+    }
+    if (this.reversalOfStockEntryId == null && reversalOfStockEntryLineId != null) {
+      throw new DomainException("普通单据的行不该指回原行，只有红字行才指");
+    }
     if (findLine(variantId, outboundLocationId, inboundLocationId) != null) {
-      throw new DomainException("物料" + variantId + "在同一对仓库之间已在本单中!");
+      throw new DomainException("物料" + variantId + "在同一对库位之间已在本单中!");
     }
     stockEntryLines.add(
         new StockEntryLine(
-            materialId, variantId, qty, outboundLocationId, inboundLocationId, remark));
+            materialId,
+            variantId,
+            qty,
+            outboundLocationId,
+            inboundLocationId,
+            reversalOfStockEntryLineId,
+            remark));
   }
 
   /**
@@ -275,7 +290,7 @@ public class StockEntry extends OrderAggregateRoot {
    * @param sourceId 来源单据Id（可空）
    * @param sourceNumber 来源单据号（快照，可空）
    * @param remark 备注（可空）
-   * @throws DomainException 类型Id非法、来源填了一半或来源类型不在枚举内时抛出
+   * @throws DomainException 类型Id非法、填了来源类型但来源单据Id有误时抛出
    */
   private void apply(
       String stockEntryType,
@@ -288,22 +303,17 @@ public class StockEntry extends OrderAggregateRoot {
       throw new DomainException("单据类型不能为空");
     }
     String trimmedSourceType = StringUtils.trimToNull(sourceType);
-    String trimmedSourceNumber = StringUtils.trimToNull(sourceNumber);
-    boolean hasSource = trimmedSourceType != null || sourceId != null || trimmedSourceNumber != null;
-    if (hasSource) {
-      if (trimmedSourceType == null || sourceId == null) {
-        throw new DomainException("来源要么整填、要么整空：只填一半就查不回是哪张单让这批货动的");
-      }
-      this.sourceType = EnumUtils.getCode(SerialNumberTypeEnum.class, trimmedSourceType, "来源单据类型");
-      if (sourceId <= 0) {
-        throw new DomainException("来源单据Id有误!");
-      }
-      this.sourceId = sourceId;
-      this.sourceNumber = trimmedSourceNumber;
-    } else {
+    if (trimmedSourceType == null) {
       this.sourceType = null;
       this.sourceId = null;
       this.sourceNumber = null;
+    } else {
+      if (sourceId == null || sourceId <= 0) {
+        throw new DomainException("来源单据Id有误!");
+      }
+      this.sourceType = EnumUtils.getCode(SerialNumberTypeEnum.class, trimmedSourceType, "来源单据类型");
+      this.sourceId = sourceId;
+      this.sourceNumber = StringUtils.trimToNull(sourceNumber);
     }
     this.stockEntryType = trimmedEntryType;
     this.remark = remark;
@@ -323,7 +333,7 @@ public class StockEntry extends OrderAggregateRoot {
   /**
    * 按「SKU + 出库库位 + 入库库位」查找未删除的行
    *
-   * <p>同一张单里重复记同一对仓之间的同一次流转，等于把一笔账记两遍，过账时库存会多走一遍。
+   * <p>同一张单里重复记同一对库位之间的同一次流转，等于把一笔账记两遍，过账时库存会多走一遍。
    *
    * @param variantId 物料SKU
    * @param outboundLocationId 出库库位Id（可空）

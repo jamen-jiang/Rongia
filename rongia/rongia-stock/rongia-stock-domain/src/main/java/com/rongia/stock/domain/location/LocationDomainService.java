@@ -36,7 +36,6 @@ public class LocationDomainService {
    * @param parentId 上级库位Id（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    * @return 库位聚合
@@ -46,14 +45,13 @@ public class LocationDomainService {
       @Nullable Long parentId,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     Location model = locationRepository.getByCode(warehouseId, code);
     if (model == null) {
-      return create(warehouseId, parentId, code, name, usage, disabled, remark);
+      return create(warehouseId, parentId, code, name, disabled, remark);
     }
-    modify(model, warehouseId, parentId, code, name, usage, disabled, remark);
+    modify(model, warehouseId, parentId, code, name, disabled, remark);
     return model;
   }
 
@@ -64,7 +62,6 @@ public class LocationDomainService {
    * @param parentId 上级库位Id（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    * @return 库位聚合
@@ -75,7 +72,6 @@ public class LocationDomainService {
       @Nullable Long parentId,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     Location parent = parentId == null ? null : requireLocation(parentId);
@@ -88,7 +84,6 @@ public class LocationDomainService {
         HierarchyUtils.resolveParentPath(parentId, parent, "上级库位"),
         code,
         name,
-        usage,
         disabled,
         remark);
   }
@@ -101,7 +96,6 @@ public class LocationDomainService {
    * @param parentId 上级库位Id（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    * @return 库位聚合
@@ -113,11 +107,10 @@ public class LocationDomainService {
       @Nullable Long parentId,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     Location model = getExist(id);
-    modify(model, warehouseId, parentId, code, name, usage, disabled, remark);
+    modify(model, warehouseId, parentId, code, name, disabled, remark);
     return model;
   }
 
@@ -129,7 +122,6 @@ public class LocationDomainService {
    * @param parentId 上级库位Id（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    * @throws DomainException 代码冲突、或层级关系成环时抛出
@@ -140,7 +132,6 @@ public class LocationDomainService {
       @Nullable Long parentId,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     if (locationRepository.isExistByCodeExcludeId(warehouseId, code, model.getId())) {
@@ -164,7 +155,6 @@ public class LocationDomainService {
         HierarchyUtils.resolveParentPath(parentId, parent, "上级库位"),
         code,
         name,
-        usage,
         disabled,
         remark);
     refreshDescendants(model);

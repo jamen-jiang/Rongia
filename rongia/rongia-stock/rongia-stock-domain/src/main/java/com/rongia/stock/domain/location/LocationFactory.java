@@ -28,7 +28,6 @@ public class LocationFactory {
    * @param parentPath 层级路径（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    * @return 库位聚合
@@ -40,13 +39,12 @@ public class LocationFactory {
       @Nullable String parentPath,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     if (locationRepository.isExistByCodeExcludeId(warehouseId, code)) {
       throw new DomainException("库位代码" + code + "在该仓库下已存在!");
     }
     return new Location(
-        warehouseId, parentId, parentPath, code, name, usage, disabled, remark);
+        warehouseId, parentId, parentPath, code, name, disabled, remark);
   }
 }

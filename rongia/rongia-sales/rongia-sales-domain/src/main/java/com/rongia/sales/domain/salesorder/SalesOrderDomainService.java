@@ -1,6 +1,7 @@
 package com.rongia.sales.domain.salesorder;
 
 import com.rongia.shared.domain.exception.DomainException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.jspecify.annotations.NullMarked;
@@ -164,31 +165,54 @@ public class SalesOrderDomainService {
   }
 
   /**
-   * 转待发货：单据算数，客户与价格定死
+   * 确认：单据算数，客户与价格定死
    *
-   * <p>按行派工单由应用层在同一个事务里接着做：先让本单转过去，再逐行开单——反过来先开工单，本单一旦转不过去
+   * <p>按行派工单由应用层在同一个事务里接着做：先让本单确认，再逐行开单——反过来先开工单，本单一旦确认不过去
    * 就会留下一批无主工单。
    *
    * @param id 销售订单Id
    * @return 销售订单聚合
    * @throws DomainException 销售订单不存在、或单内没有行时抛出
    */
-  public SalesOrder deliver(long id) {
+  public SalesOrder confirm(long id) {
     SalesOrder model = getExist(id);
-    model.deliver();
+    model.confirm();
     return model;
   }
 
   /**
-   * 完成：货全发完了
+   * 发货：把本次出的货记到某一行的已发数量上
+   *
+   * <p>开发货单、从哪个库位出由应用层在同一个事务里编排：本方法只把数量累加到销售行的已发上，
+   * 库存那半边由库存模块记账。
    *
    * @param id 销售订单Id
+   * @param salesOrderLineId 销售订单行Id
+   * @param qty 本次发货数量
    * @return 销售订单聚合
-   * @throws DomainException 销售订单不存在、或非待发货状态时抛出
+   * @throws DomainException 销售订单不存在、单据未确认/已取消/已关闭、行不存在、或累计发货超过订单量时抛出
    */
-  public SalesOrder complete(long id) {
+  public SalesOrder deliver(long id, long salesOrderLineId, BigDecimal qty) {
     SalesOrder model = getExist(id);
-    model.complete();
+    model.deliver(salesOrderLineId, qty);
+    return model;
+  }
+
+  /**
+   * 退货：把某一行的已发数量减回去
+   *
+   * <p>开销售退货入库单由应用层在同一个事务里编排：本方法只把数量从销售行的已发上减掉，
+   * 库存那半边由库存模块开一张「销售退货」单记账。
+   *
+   * @param id 销售订单Id
+   * @param salesOrderLineId 销售订单行Id
+   * @param qty 本次退货数量
+   * @return 销售订单聚合
+   * @throws DomainException 销售订单不存在、单据未确认/已取消/已关闭、行不存在、或退货超过已发数量时抛出
+   */
+  public SalesOrder undeliver(long id, long salesOrderLineId, BigDecimal qty) {
+    SalesOrder model = getExist(id);
+    model.undeliver(salesOrderLineId, qty);
     return model;
   }
 

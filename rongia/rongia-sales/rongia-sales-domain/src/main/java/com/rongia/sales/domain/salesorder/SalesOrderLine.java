@@ -23,6 +23,9 @@ import org.jspecify.annotations.Nullable;
  * <p>一行说的是「客户要哪个 SKU、要多少、什么价、打几折、按什么税率」。物料只存 Id，客户料号与客户叫法存一份快照：
  * 对照表在客户物料主数据里，但那边会改，改完历史订单不能跟着变，打印给客户看的还得是当初那个号。
  *
+ * <p>已发数量是发货单一次次累加上来的：一张单能分多次发，发完没有看它跟订单量比，不看单头状态（照 Odoo 的
+ * {@code qty_delivered}）。
+ *
  * <p>金额三列算完就落库，不是每次现算：税按行取整，一行先算净额再算税，单头只是把行加起来，现算会得到另一个数。
  *
  * <p>下单时的默认价取物料上的销售价，客户料号从客户物料对照表带出来，这两件都在应用层拼，行本身只认传进来的数。
@@ -73,6 +76,10 @@ public class SalesOrderLine extends BaseDeleteEntity {
   /** 数量 */
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
   private BigDecimal qty;
+
+  /** 已发数量（发货单一次次累加，初值 0） */
+  @Column(name = "DeliveredQty", nullable = false, precision = 18, scale = 2)
+  private BigDecimal deliveredQty;
 
   /** 单位Id */
   @Column(name = "UnitId", nullable = false)
@@ -147,6 +154,7 @@ public class SalesOrderLine extends BaseDeleteEntity {
         discount,
         taxRateId,
         taxRate);
+    this.deliveredQty = BigDecimal.ZERO;
   }
 
   /**
@@ -273,6 +281,46 @@ public class SalesOrderLine extends BaseDeleteEntity {
     this.amountUntaxed = untaxed;
     this.amountTax = tax;
     this.amountTotal = untaxed.add(tax);
+  }
+
+  /**
+   * 发货：累加已发数量
+   *
+   * <p>上限是订单量：发多了对账时说不清多出来的那批算哪一笔。要按超发处理，先回去把订单量调大，
+   * 而不是在这里放宽校验。
+   *
+   * @param qty 本次发货数量
+   * @throws DomainException 数量非正、或累计发货超过订单量时抛出
+   */
+  public void deliver(BigDecimal qty) {
+    if (qty.signum() <= 0) {
+      throw new DomainException("发货数量必须大于0");
+    }
+    BigDecimal total = this.deliveredQty.add(qty);
+    if (total.compareTo(this.qty) > 0) {
+      throw new DomainException(
+          "物料" + this.variantId + "超发：订单" + this.qty + "，累计发货将达" + total);
+    }
+    this.deliveredQty = total;
+  }
+
+  /**
+   * 退货：把已发数量减回去
+   *
+   * <p>已发数量是净额（发多少减退多少），所以退货的上限就是当前的已发数量：退超过它，等于要把还没发的货也退掉。
+   *
+   * @param qty 本次退货数量
+   * @throws DomainException 数量非正、或退货超过已发数量时抛出
+   */
+  public void undeliver(BigDecimal qty) {
+    if (qty.signum() <= 0) {
+      throw new DomainException("退货数量必须大于0");
+    }
+    if (qty.compareTo(this.deliveredQty) > 0) {
+      throw new DomainException(
+          "物料" + this.variantId + "退货超过已发数量" + this.deliveredQty);
+    }
+    this.deliveredQty = this.deliveredQty.subtract(qty);
   }
 
   /**

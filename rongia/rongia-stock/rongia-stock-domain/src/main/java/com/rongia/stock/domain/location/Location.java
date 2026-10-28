@@ -3,7 +3,6 @@ package com.rongia.stock.domain.location;
 import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
 import com.rongia.shared.domain.entity.Parent;
 import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
@@ -24,8 +23,8 @@ import org.jspecify.annotations.Nullable;
  * 库位本身也是树（照 Odoo 的 {@code location_id + parent_path}）：「A 区 → 01 架」这类层级直接挂在树里，
  * 不再靠名字拼接。
  *
- * <p>{@code Usage} 决定这个库位在出入库里的角色：内部库位真实存货；供应商、客户、生产、库存损失、在途
- * 是虚拟位置，用来表示「货还没进来」「货已经出去了」。结构节点（{@code View}）不能直接存货，只用于往下分组。
+ * <p>它只回答「货放在哪个位置」，不回答「这笔出入是什么业务」——方向与用途由单据类型表达
+ * （{@code StockEntryType.Direction}），同一个库位能被入库单和出库单反复使用。
  */
 @NullMarked
 @Getter
@@ -38,8 +37,7 @@ import org.jspecify.annotations.Nullable;
       @Index(name = "IX_Location_WarehouseId", columnList = "WarehouseId"),
       @Index(name = "IX_Location_ParentId", columnList = "ParentId"),
       @Index(name = "IX_Location_ParentPath", columnList = "ParentPath"),
-      @Index(name = "IX_Location_Code", columnList = "Code"),
-      @Index(name = "IX_Location_Usage", columnList = "Usage")
+      @Index(name = "IX_Location_Code", columnList = "Code")
       // 注意：WarehouseId + Code 的过滤唯一索引带 WHERE IsDeleted=0，JPA 不支持，用 Flyway 创建
     })
 public class Location extends UpdateAggregateRoot implements Parent {
@@ -69,10 +67,6 @@ public class Location extends UpdateAggregateRoot implements Parent {
   @Column(name = "Name", nullable = false, length = 200)
   private String name;
 
-  /** 用途编码，取值见 {@link LocationUsageEnum} */
-  @Column(name = "Usage", nullable = false, length = 50)
-  private String usage;
-
   /** 是否停用 */
   @Column(name = "Disabled", nullable = false)
   private Boolean disabled;
@@ -91,7 +85,6 @@ public class Location extends UpdateAggregateRoot implements Parent {
    * @param parentPath 层级路径（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    */
@@ -101,10 +94,9 @@ public class Location extends UpdateAggregateRoot implements Parent {
       @Nullable String parentPath,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
-    apply(warehouseId, parentId, parentPath, code, name, usage, disabled, remark);
+    apply(warehouseId, parentId, parentPath, code, name, disabled, remark);
   }
 
   /**
@@ -115,7 +107,6 @@ public class Location extends UpdateAggregateRoot implements Parent {
    * @param parentPath 层级路径（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
    */
@@ -125,34 +116,15 @@ public class Location extends UpdateAggregateRoot implements Parent {
       @Nullable String parentPath,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
-    apply(warehouseId, parentId, parentPath, code, name, usage, disabled, remark);
+    apply(warehouseId, parentId, parentPath, code, name, disabled, remark);
   }
 
   /** 重设层级路径（由领域服务按父节点算好后回填） */
   @Override
   public void changeParentPath(@Nullable String parentPath) {
     this.parentPath = parentPath;
-  }
-
-  /**
-   * 是否内部库位（真实存货）
-   *
-   * @return true 表示内部库位
-   */
-  public boolean isInternal() {
-    return LocationUsageEnum.INTERNAL.getCode().equals(this.usage);
-  }
-
-  /**
-   * 是否能直接持有库存
-   *
-   * @return true 表示除结构节点外都能存货
-   */
-  public boolean canHoldStock() {
-    return !LocationUsageEnum.VIEW.getCode().equals(this.usage);
   }
 
   // ==================== 私有：校验与赋值 ====================
@@ -165,10 +137,9 @@ public class Location extends UpdateAggregateRoot implements Parent {
    * @param parentPath 层级路径（可空）
    * @param code 库位代码
    * @param name 库位名称
-   * @param usage 用途编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
-   * @throws DomainException 仓库为空、代码或名称为空、用途非法、上级库位Id有误时抛出
+   * @throws DomainException 仓库为空、代码或名称为空、上级库位Id有误时抛出
    */
   private void apply(
       long warehouseId,
@@ -176,7 +147,6 @@ public class Location extends UpdateAggregateRoot implements Parent {
       @Nullable String parentPath,
       String code,
       String name,
-      String usage,
       boolean disabled,
       @Nullable String remark) {
     if (warehouseId <= 0) {
@@ -193,14 +163,12 @@ public class Location extends UpdateAggregateRoot implements Parent {
     if (parentId != null && parentId <= 0) {
       throw new DomainException("上级库位" + parentId + "有误!");
     }
-    String validUsage = EnumUtils.getCode(LocationUsageEnum.class, usage, "库位用途");
 
     this.warehouseId = warehouseId;
     this.parentId = parentId;
     this.parentPath = parentPath;
     this.code = trimmedCode;
     this.name = trimmedName;
-    this.usage = validUsage;
     this.disabled = disabled;
     this.remark = StringUtils.trimToNull(remark);
   }

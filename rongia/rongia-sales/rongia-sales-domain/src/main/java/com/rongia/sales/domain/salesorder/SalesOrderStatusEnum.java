@@ -12,11 +12,8 @@ public enum SalesOrderStatusEnum implements BaseEnum {
   /** 草稿：还能改客户、改行、改价 */
   DRAFT("Draft", "草稿"),
 
-  /** 待发货：单子已算数，客户与价格定死，等着出货 */
-  TO_DELIVER("ToDeliver", "待发货"),
-
-  /** 已完成：货全发完了，这单的活干完了 */
-  COMPLETED("Completed", "已完成"),
+  /** 已确认：单子已算数，客户与价格定死，等着出货 */
+  CONFIRMED("Confirmed", "已确认"),
 
   /** 已关闭：结案，不再允许变更（剩余未发的额度一并作罢） */
   CLOSED("Closed", "已关闭"),

@@ -35,8 +35,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>金额三列（未税、税额、含税）跟着行算完就落库：税是按行取整的，单头只是把行加起来，每次现算未必算出同一个数， 打印给客户看的也得是当初那一版。
  *
- * <p>生命周期五态：{@code DRAFT → TO_DELIVER → COMPLETED}，任意未结案阶段都能 {@code CANCELLED}，做过的单子 剩下的不要了走 {@code
- * CLOSED}。不做「已确认」那一档：草稿一交出去就是待发货，中间没有「批了但还没安排」的 空档——镜片按单排产，确认那一下就把工单派出去了。
+ * <p>生命周期四态：{@code DRAFT} → {@code CONFIRMED}，确认后就冻住；发过的照算、剩下的不要了走 {@code CLOSED}（短交），
+ * 客户不做了走 {@code CANCELLED}。与采购单同款：状态只说单据走到哪一步，「发完没有」不看状态，看行上的已发数量与订单量比。
  *
  * <p>单上不挂 BOM、不挂工艺路线、不挂工单号：那是车间的事。确认后按行开工单由应用层编排，一行一张工单，工单靠 来源单据找回这张单。
  */
@@ -266,30 +266,48 @@ public class SalesOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 转待发货：单子算数了，客户与价格就此定死，等着出货
+   * 确认：单子算数了，客户与价格就此定死，等着出货
    *
-   * <p>按行派工单由应用层在同一个事务里编排，本方法只管自己的状态：一张没有行的订单转过去也没东西可做， 所以先拦在这里。
+   * <p>按行派工单由应用层在同一个事务里编排，本方法只管自己的状态：一张没有行的订单确认过去也没东西可做， 所以先拦在这里。
    *
    * @throws DomainException 非草稿状态、或单内没有行时抛出
    */
-  public void deliver() {
+  public void confirm() {
     ensureDraft();
     if (activeLines().isEmpty()) {
-      throw new DomainException("销售订单没有行，不能转待发货");
+      throw new DomainException("销售订单没有行，不能确认");
     }
-    this.status = SalesOrderStatusEnum.TO_DELIVER.getCode();
+    this.status = SalesOrderStatusEnum.CONFIRMED.getCode();
   }
 
   /**
-   * 完成：货全发完了，这单的活干完了
+   * 发货：把本次出的货记到某一行的已发数量上
    *
-   * @throws DomainException 非待发货状态时抛出
+   * <p>一张销售单能分多次发，每次发哪几行、各多少由发货单定；这里只把数量累加到行上，「发完没有」照样算得出来。
+   * 从哪个库位出、派没派工单不在这里——那些是发货单和应用层的事。
+   *
+   * @param salesOrderLineId 销售订单行Id
+   * @param qty 本次发货数量
+   * @throws DomainException 单据未确认、已取消或已关闭、行不存在、或累计发货超过订单量时抛出
    */
-  public void complete() {
-    if (!isToDeliver()) {
-      throw new DomainException("只有待发货的销售订单才能完成");
-    }
-    this.status = SalesOrderStatusEnum.COMPLETED.getCode();
+  public void deliver(long salesOrderLineId, BigDecimal qty) {
+    ensureDeliverable("发货");
+    requireLine(salesOrderLineId).deliver(qty);
+  }
+
+  /**
+   * 退货：把某一行的已发数量减回去
+   *
+   * <p>货从客户退回仓库，库存那边开一张「销售退货」入库单；这里只把行上的已发数量减掉。
+   * 退货入到哪个库位不在这里——可能是退货区，不是当初发出的那个库位。
+   *
+   * @param salesOrderLineId 销售订单行Id
+   * @param qty 本次退货数量
+   * @throws DomainException 单据未确认、已取消或已关闭、行不存在、或退货超过已发数量时抛出
+   */
+  public void undeliver(long salesOrderLineId, BigDecimal qty) {
+    ensureDeliverable("退货");
+    requireLine(salesOrderLineId).undeliver(qty);
   }
 
   /**
@@ -312,7 +330,7 @@ public class SalesOrder extends OrderAggregateRoot {
   /**
    * 取消
    *
-   * <p>转待发货的单子可能已经派了工单，取消前要由应用层先把那些工单取消掉——本方法只管本单。
+   * <p>已确认的单子可能已经派了工单，取消前要由应用层先把那些工单取消掉——本方法只管本单。
    *
    * @throws DomainException 已取消或已关闭时抛出
    */
@@ -336,21 +354,12 @@ public class SalesOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 是否待发货
+   * 是否已确认
    *
-   * @return true 表示待发货
+   * @return true 表示已确认
    */
-  public boolean isToDeliver() {
-    return SalesOrderStatusEnum.TO_DELIVER.getCode().equals(this.status);
-  }
-
-  /**
-   * 是否已完成
-   *
-   * @return true 表示已完成
-   */
-  public boolean isCompleted() {
-    return SalesOrderStatusEnum.COMPLETED.getCode().equals(this.status);
+  public boolean isConfirmed() {
+    return SalesOrderStatusEnum.CONFIRMED.getCode().equals(this.status);
   }
 
   /**
@@ -409,7 +418,27 @@ public class SalesOrder extends OrderAggregateRoot {
    */
   private void ensureDraft() {
     if (!isDraft()) {
-      throw new DomainException("销售订单已提交，不能再修改");
+      throw new DomainException("销售订单已确认，不能再修改");
+    }
+  }
+
+  /**
+   * 校验单据允许动已发数量
+   *
+   * <p>草稿还没确认、取消了的不要了、关闭了的结了案，这三种都不该再动行上的已发数量——发货和退货都走这一道。
+   *
+   * @param action 动作名（发货 / 退货），拼进报错里
+   * @throws DomainException 单据未确认、已取消或已关闭时抛出
+   */
+  private void ensureDeliverable(String action) {
+    if (isDraft()) {
+      throw new DomainException("销售订单未确认，不能" + action);
+    }
+    if (isCancelled()) {
+      throw new DomainException("销售订单已取消，不能" + action);
+    }
+    if (isClosed()) {
+      throw new DomainException("销售订单已关闭，不能" + action);
     }
   }
 

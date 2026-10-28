@@ -76,7 +76,23 @@
             <artifactId>rongia-production-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 5. 系统管理上下文                            -->
+        <!-- 5. 采购上下文                                -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-purchase-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-purchase-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-purchase-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 6. 系统管理上下文                            -->
         <dependency>
             <groupId>com.rongia</groupId>
             <artifactId>rongia-system-application</artifactId>

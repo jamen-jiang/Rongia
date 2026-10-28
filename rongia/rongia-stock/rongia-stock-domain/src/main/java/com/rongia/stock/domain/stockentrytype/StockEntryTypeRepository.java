@@ -9,15 +9,6 @@ import org.jspecify.annotations.Nullable;
 public interface StockEntryTypeRepository extends Repository<StockEntryType> {
 
   /**
-   * 按名称取类型行
-   *
-   * @param name 类型名称
-   * @return 类型行（可空），不存在时返回 null
-   */
-  @Nullable
-  StockEntryType getByName(String name);
-
-  /**
    * 按编码取类型行
    *
    * <p>程序自动开单时用它定位：编码唯一，一行就是一个种类。

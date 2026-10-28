@@ -17,6 +17,9 @@ public enum SerialNumberTypeEnum implements BaseEnum {
   /** 销售订单 */
   SALES_ORDER("SalesOrder", "销售订单"),
 
+  /** 采购单 */
+  PURCHASE_ORDER("PurchaseOrder", "采购单"),
+
   /** 工单（生产订单） */
   WORK_ORDER("WorkOrder", "工单"),
 

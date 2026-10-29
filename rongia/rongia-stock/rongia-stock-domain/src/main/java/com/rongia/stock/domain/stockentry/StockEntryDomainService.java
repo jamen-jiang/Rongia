@@ -75,7 +75,7 @@ public class StockEntryDomainService {
    *
    * <p>单号不接入参：由 OrderAddedEvent 的监听器按流水号规则分配。
    *
-   * <p>{@code sourceType} 与来源单据号是程序这条路的入口：编码按行上的库位与来源推，推出来只可能是那六个
+   * <p>{@code sourceType} 与来源单据号是程序这条路的入口：编码按行上的库位与来源推，推出来只可能是那七个
    * 标准编码，方向由行的形状决定，不查类型表。手工开单走另一条重载，类型由人挑。
    *
    * @param sourceType 来源单据类型编码，取值见 {@link SerialNumberTypeEnum}
@@ -170,7 +170,7 @@ public class StockEntryDomainService {
    * 照抄原单、指回原单。一次只冲一部分也行——同一张原单能开好几张红字单，今天冲 20、过两天再冲 10。
    *
    * <p>护栏只有一条：同一位置累计冲掉的不超过原单当初记的量。算「已冲多少」时，已经开出来的红字单都算数
-   * （草稿也算——草稿虽然还没搬货，可它已经把这部分额度占住了）：草稿虽然还没搬货，可它已经把这部分额度占住了；不占的话两张草稿各冲满额，过账时
+   * （草稿也算——草稿虽然还没搬货，可它已经把这部分额度占住了）；不占的话两张草稿各冲满额，过账时
    * 谁也拦不住——库位里别的批次有货，第二张会去偷别人的账。
    *
    * <p>红字单本身不能再红冲：它当初就是往回冲的，要纠正它得另开一张正向单。
@@ -237,8 +237,8 @@ public class StockEntryDomainService {
    * 按行上的库位与来源推单据类型编码
    *
    * <p>规则照 ERPNext 的 {@code make_stock_entry}：出库库位与入库库位都填是调拨；只填一端时再看来源——
-   * 出库是销售单就是销售出库、否则是领料出库；入库是销售单就是销售退货、是工单就是完工入库、否则是采购入库。
-   * 一张单里各行推出的编码必须一致——既出又入的单要拆成两张开，混在一张里归堆和红冲都说不清。
+   * 出库是销售单就是销售出库、是采购单就是采购退货、否则是领料出库；入库是销售单就是销售退货、是工单就是完工入库、
+   * 否则是采购入库。一张单里各行推出的编码必须一致——既出又入的单要拆成两张开，混在一张里归堆和红冲都说不清。
    *
    * <p>编码从第一行起就有：调用方已经拦过空行集，第一行推出来的就是这张单的编码，不存在推不出来的情况。
    *
@@ -260,8 +260,8 @@ public class StockEntryDomainService {
   /**
    * 按一行的库位与来源推这条行的编码
    *
-   * <p>只填一端时，出库与入库都要看来源：同样是「只有出库库位」，来源是销售单是销售出库、是工单或没来源是领料出库；
-   * 同样是「只有入库库位」，来源是销售单是销售退货、是工单是完工入库、其余是采购入库。
+   * <p>只填一端时，出库与入库都要看来源：同样是「只有出库库位」，来源是销售单是销售出库、是采购单是采购退货、
+   * 其余是领料出库；同样是「只有入库库位」，来源是销售单是销售退货、是工单是完工入库、其余是采购入库。
    *
    * @param data 库存单据行数据
    * @param sourceType 来源单据类型编码
@@ -272,8 +272,11 @@ public class StockEntryDomainService {
       return StockEntryTypeEnum.TRANSFER.getCode();
     }
     if (data.outboundLocationId() != null) {
-      return SerialNumberTypeEnum.SALES_ORDER.getCode().equals(sourceType)
-          ? StockEntryTypeEnum.SALES_DELIVERY.getCode()
+      if (SerialNumberTypeEnum.SALES_ORDER.getCode().equals(sourceType)) {
+        return StockEntryTypeEnum.SALES_DELIVERY.getCode();
+      }
+      return SerialNumberTypeEnum.PURCHASE_ORDER.getCode().equals(sourceType)
+          ? StockEntryTypeEnum.PURCHASE_RETURN.getCode()
           : StockEntryTypeEnum.PRODUCTION_ISSUE.getCode();
     }
     if (SerialNumberTypeEnum.SALES_ORDER.getCode().equals(sourceType)) {
@@ -287,8 +290,8 @@ public class StockEntryDomainService {
   /**
    * 按编码取可用的类型行
    *
-   * <p>手工开单走这里：编码得是表里已有的自建类型，还得没停用。程序保留的六个编码按设计不在表里（用户建不出来），
-   * 手工开单也就选不到它们——那六个由程序自动开单那条路直接用，不查表。
+   * <p>手工开单走这里：编码得是表里已有的自建类型，还得没停用。程序保留的七个编码按设计不在表里（用户建不出来），
+   * 手工开单也就选不到它们——那七个由程序自动开单那条路直接用，不查表。
    *
    * @param code 类型编码
    * @return 类型行

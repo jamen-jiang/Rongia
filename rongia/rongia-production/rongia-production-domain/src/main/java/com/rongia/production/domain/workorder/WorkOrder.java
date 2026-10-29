@@ -1,7 +1,6 @@
 package com.rongia.production.domain.workorder;
 
 import com.rongia.shared.domain.aggregate.OrderAggregateRoot;
-import com.rongia.shared.domain.enums.PriorityEnum;
 import com.rongia.shared.domain.enums.SerialNumberTypeEnum;
 import com.rongia.shared.domain.exception.DomainException;
 import com.rongia.shared.domain.util.EnumUtils;
@@ -76,11 +75,6 @@ public class WorkOrder extends OrderAggregateRoot {
   @Nullable
   private String sourceNumber;
 
-  /** 优先级编码，取值见 {@link PriorityEnum}（照 Odoo 的 priority：Normal 普通 / Urgent 紧急，紧急的先排） */
-  @Nationalized
-  @Column(name = "Priority", nullable = false, length = 50)
-  private String priority;
-
   /** 展开所用的BOM（可空，物料没有 BOM 时为空） */
   @Column(name = "BomId")
   @Nullable
@@ -114,12 +108,12 @@ public class WorkOrder extends OrderAggregateRoot {
   @Nullable
   private LocalDateTime plannedEndTime;
 
-  /** 实际开工时间（开工时落，照 ERPNext 的 actual_start_date） */
+  /** 实际开工时间（第一笔报工时落，照 ERPNext 的 actual_start_date） */
   @Column(name = "ActualStartTime")
   @Nullable
   private LocalDateTime actualStartTime;
 
-  /** 实际完工时间（完工时落，照 ERPNext 的 actual_end_date） */
+  /** 实际完工时间（工序全部报满时落，照 ERPNext 的 actual_end_date） */
   @Column(name = "ActualEndTime")
   @Nullable
   private LocalDateTime actualEndTime;
@@ -175,7 +169,6 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空）
    * @param sourceNumber 来源单号（可空）
-   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空）
    * @param routingId 指定工艺路线（可空）
    * @param materialId 产出SKU的SPU
@@ -193,7 +186,6 @@ public class WorkOrder extends OrderAggregateRoot {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
-      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
@@ -211,7 +203,6 @@ public class WorkOrder extends OrderAggregateRoot {
         sourceType,
         sourceId,
         sourceNumber,
-        priority,
         bomId,
         routingId,
         materialId,
@@ -286,7 +277,6 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空）
    * @param sourceNumber 来源单号（可空）
-   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空）
    * @param routingId 指定工艺路线（可空）
    * @param materialId 产出SKU的SPU
@@ -304,7 +294,6 @@ public class WorkOrder extends OrderAggregateRoot {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
-      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
@@ -323,7 +312,6 @@ public class WorkOrder extends OrderAggregateRoot {
         sourceType,
         sourceId,
         sourceNumber,
-        priority,
         bomId,
         routingId,
         materialId,
@@ -428,12 +416,12 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 开工
+   * 开工：第一笔报工落下时由回写触发
    *
    * @param actualStartTime 实际开工时间
    * @throws DomainException 非已下达状态时抛出
    */
-  public void start(LocalDateTime actualStartTime) {
+  private void start(LocalDateTime actualStartTime) {
     if (!isReleased()) {
       throw new DomainException("只有已下达的工单才能开工");
     }
@@ -486,30 +474,11 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 工序开工
-   *
-   * @param workOrderOperationId 工单工序Id
-   * @param actualStartTime 实际开工时间
-   * @throws DomainException 工单已结束、或前置工序尚未完工时抛出
-   */
-  public void startOperation(long workOrderOperationId, LocalDateTime actualStartTime) {
-    ensureExecutable();
-    WorkOrderOperation operation = requireOperation(workOrderOperationId);
-    WorkOrderOperation predecessor = lastEffectivePredecessor(operation);
-    if (predecessor != null && !predecessor.isCompleted()) {
-      throw new DomainException("工序" + operation.getOperationName() + "的前置工序尚未完工，不能开工");
-    }
-    operation.start(actualStartTime);
-    if (isReleased()) {
-      start(actualStartTime);
-    }
-  }
-
-  /**
    * 工序报工（行级校验）
    *
-   * <p>报工明细由 {@code WorkOrderTracking} 承载，权威数在流水里；行上的合计由报工侧按流水回写。这里只做
-   * 行级校验；「累计报工数不得超过可投入数量」这道数量闸在报工领域服务里按流水算（本聚合不读报工仓储）。
+   * <p>报工明细由 {@code WorkOrderTracking} 承载，权威数在流水里；行上的合计由报工侧按流水回写。
+   * 报工不要求先开工：工序状态按累计良品算，报第一笔就是加工中。数量闸在报工领域服务里按流水算
+   * （本聚合不读报工仓储）。
    *
    * @param workOrderOperationId 工单工序Id
    * @param producedQty 本次完成数量
@@ -521,12 +490,12 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 撤回报工：把良品、报废与工时从工序行减回去
+   * 撤回报工：只查顺序，减数由报工侧回写做
    *
    * <p>只能倒序冲：后面已经报过工的工序，吃的就是本工序报出来的数，本工序一冲它们的产出就没了依据，所以要 先把后面那道的报工单冲干净。
    *
-   * <p>已完工的工单允许撤——工序全部收尾会把工单自动推到已完工，撤回正好是它的逆操作；撤完只要有一道工序
-   * 回到未结束状态，工单就退回生产中。
+   * <p>已完工的工单允许撤——工序全部报满会把工单自动推到已完工，撤回正好是它的逆操作；回写把工序状态退下去后，
+   * 工单也跟着退回生产中。
    *
    * <p>标了「报工倒冲」的用料不会因为这次撤回自动退料：那张已照批的领料单是另一笔业务，料要还回去就另开一张 退料单，两边各自校验、各自留单据痕迹。
    *
@@ -540,25 +509,33 @@ public class WorkOrder extends OrderAggregateRoot {
     if (later != null) {
       throw new DomainException("后续工序" + later.getOperationName() + "已经报过工，请先撤回它的报工");
     }
-    operation.unreport();
-    reopenIfNotAllFinished();
   }
 
   /**
    * 回写流水汇总的工序合计
    *
    * <p>照 ERPNext 的作业卡提交节奏：良品、报废、工时的权威数在报工单流水里，报工侧在单据生效/作废后按
-   * 流水汇总回写这道工序的落库合计，行上的状态推进（撤空退回加工中）随回写一并发生。
+   * 流水汇总回写这道工序的落库合计，工序状态也在这里按量重算。第一笔报工把已下达的工单带进生产中，
+   * 工序全部报满则工单转完工——都是量的结论，不需要人再点开工、完工。
    *
    * @param workOrderOperationId 工单工序Id
    * @param producedQty 流水已完成数量
    * @param actualCycleTime 流水累计工时
+   * @param moment 报工时刻
    * @throws DomainException 工序不存在时抛出
    */
   public void applyOperationTotals(
-      long workOrderOperationId, BigDecimal producedQty, BigDecimal actualCycleTime) {
-    requireOperation(workOrderOperationId).applyOperationTotals(producedQty, actualCycleTime);
-    reopenIfNotAllFinished();
+      long workOrderOperationId,
+      BigDecimal producedQty,
+      BigDecimal actualCycleTime,
+      LocalDateTime moment) {
+    WorkOrderOperation operation = requireOperation(workOrderOperationId);
+    operation.applyOperationTotals(
+        producedQty, actualCycleTime, availableQtyFor(operation), moment);
+    if (isReleased()) {
+      start(moment);
+    }
+    refreshCompletionStatus(moment);
   }
 
   /**
@@ -569,21 +546,6 @@ public class WorkOrder extends OrderAggregateRoot {
    */
   public BigDecimal availableQtyFor(long workOrderOperationId) {
     return availableQtyFor(requireOperation(workOrderOperationId));
-  }
-
-  /**
-   * 工序完工
-   *
-   * <p>工序完工后刷新工单：所有工序都完工时，工单自动转为已完工。
-   *
-   * @param workOrderOperationId 工单工序Id
-   * @param actualEndTime 实际完工时间
-   * @throws DomainException 工单已结束、或工序未开工时抛出
-   */
-  public void completeOperation(long workOrderOperationId, LocalDateTime actualEndTime) {
-    ensureExecutable();
-    requireOperation(workOrderOperationId).complete(actualEndTime);
-    refreshCompletionStatus(actualEndTime);
   }
 
   /**
@@ -767,7 +729,6 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空）
    * @param sourceNumber 来源单号（可空）
-   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空）
    * @param routingId 指定工艺路线（可空）
    * @param materialId 产出SKU的SPU
@@ -785,7 +746,6 @@ public class WorkOrder extends OrderAggregateRoot {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
-      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
@@ -824,7 +784,6 @@ public class WorkOrder extends OrderAggregateRoot {
     this.unitId = unitId;
     this.sourceId = sourceId;
     this.sourceNumber = sourceNumber;
-    this.priority = EnumUtils.getCode(PriorityEnum.class, priority, "优先级");
     this.bomId = bomId;
     this.routingId = routingId;
     this.deliveryTime = deliveryTime;
@@ -935,37 +894,28 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 回填工单产出，工序全部结束时自动完工
+   * 按工序收尾情况刷新工单状态
    *
-   * <p>判据取工序状态而不是数量：车间的「做完了」体现在每道工序都收了尾，不体现在数字凑没凑够。首道工序
-   * 一次报满计划数量并不能说明镀膜、包装也好了，按数量判会把工单提前推到已完工、后面再也报不进工。反过来 中间工序报废到只剩 90 片、五道都收了尾，那 90 片就是这张工单的产出，该完工。
+   * <p>两个方向都在这里：所有工序都报满了就把工单推到已完工并落完工时间；某道工序被撤回、不再全部报满，
+   * 已完工的工单退回生产中，完工时间一并清空。只在生产中的工单上动——已关闭、已取消的工单不该被报工带回来。
    *
-   * <p>数量口径留给 {@link #complete} 那个手工入口：产出与报废凑够了计划数、工序却还挂着没做完，由主管 自己判定要不要提前结单。
-   *
-   * @param actualEndTime 实际完工时间
+   * @param moment 报工时刻
    */
-  private void refreshCompletionStatus(LocalDateTime actualEndTime) {
-    if (!allOperationsFinished()) {
-      return;
-    }
-    this.status = WorkOrderStatusEnum.COMPLETED.getCode();
-    this.actualEndTime = actualEndTime;
-  }
-
-  /**
-   * 撤回报工后重判状态：工序不再全部结束的已完工工单退回生产中
-   *
-   * <p>与 {@code refreshCompletionStatus} 对称——完工由工序收尾触发，撤回把某道工序退回了加工中，完工就 不成立了，完工时间一并清空。
-   */
-  private void reopenIfNotAllFinished() {
-    if (!isCompleted()) {
+  private void refreshCompletionStatus(LocalDateTime moment) {
+    if (!isInProgress() && !isCompleted()) {
       return;
     }
     if (allOperationsFinished()) {
+      if (!isCompleted()) {
+        this.status = WorkOrderStatusEnum.COMPLETED.getCode();
+        this.actualEndTime = moment;
+      }
       return;
     }
-    this.status = WorkOrderStatusEnum.IN_PROGRESS.getCode();
-    this.actualEndTime = null;
+    if (isCompleted()) {
+      this.status = WorkOrderStatusEnum.IN_PROGRESS.getCode();
+      this.actualEndTime = null;
+    }
   }
 
   /**

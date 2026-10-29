@@ -18,10 +18,11 @@ import org.jspecify.annotations.Nullable;
  * 领域服务里编排，而不是让报工单去反向修改工单。
  *
  * <p>报工没有草稿：建单那一刻就累加进工单工序。现场扫完工单号落下三个数，校验与累计同时发生，错了当场
- * 报错，而不是留到下班对账才发现。要改数就作废这一张、重新报一张，作废会把累计值减回去。
+ * 报错，而不是留到下班对账才发现。要改数就作废这一张、重新报一张，作废会把累计值减回去。工序状态不单独动，
+ * 每次回写按累计良品对可投入量重算——报第一笔就是开工，报满了就是完工。
  *
  * <p>创建报工单只需要三个业务事实：哪道工序、出了多少良品、坏了多少。工单号、工序名称、工作中心
- * 这些快照由本服务从工单上抄下来，操作人沿用工序开工时记的那位，工时不填就按工序标准时间算。
+ * 这些快照由本服务从工单上抄下来，工时不填就按工序标准时间算。
  */
 @NullMarked
 public class WorkOrderTrackingDomainService {
@@ -64,9 +65,10 @@ public class WorkOrderTrackingDomainService {
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
    * @param workTime 本次工时（分钟），传空则按工序标准时间算
+   * @param moment 报工时刻
    * @param remark 备注（可空）
    * @return 报工单聚合
-   * @throws DomainException 工单或工序行不存在、工序未开工、报工数超过投入数、或按批取时却没有标准批量时抛出
+   * @throws DomainException 工单或工序行不存在、报工数超过投入数、或按批取时却没有标准批量时抛出
    */
   public WorkOrderTracking create(
       long workOrderId,
@@ -74,17 +76,19 @@ public class WorkOrderTrackingDomainService {
       BigDecimal goodQty,
       BigDecimal lossQty,
       @Nullable BigDecimal workTime,
+      LocalDateTime moment,
       @Nullable String remark) {
     WorkOrder workOrder = requireWorkOrder(workOrderId);
     WorkOrderOperation operation = requireOperation(workOrder, workOrderOperationId);
     BigDecimal minutes = resolveWorkTime(operation, goodQty, lossQty, workTime);
     workOrder.reportOperation(operation.getId(), goodQty);
     checkReportGate(workOrder, operation, goodQty);
-    // 回写：本单生效后的流水合计（现有合计 + 本单）
+    // 回写：本单生效后的流水合计（现有合计 + 本单），工序状态按量重算
     workOrder.applyOperationTotals(
         operation.getId(),
         operation.getProducedQty().add(goodQty),
-        operation.getActualCycleTime().add(minutes));
+        operation.getActualCycleTime().add(minutes),
+        moment);
     return trackingFactory.create(
         workOrder.getId(),
         workOrder.getNumber(),
@@ -110,7 +114,7 @@ public class WorkOrderTrackingDomainService {
    * @param id 报工单Id
    * @param moment 作废时间
    * @return 报工单聚合（已作废）
-   * @throws DomainException 报工单或工单不存在、已作废、后续工序已开工、或工单侧校验不过时抛出
+   * @throws DomainException 报工单或工单不存在、已作废、后续工序已报工、或工单侧校验不过时抛出
    */
   public WorkOrderTracking voidReport(long id, LocalDateTime moment) {
     WorkOrderTracking model = getExist(id);
@@ -122,12 +126,13 @@ public class WorkOrderTrackingDomainService {
     workOrder.unreportOperation(model.getWorkOrderOperationId());
 
     model.voidReport(moment);
-    // 回写：本单作废后的流水合计（现有合计 − 本单）
+    // 回写：本单作废后的流水合计（现有合计 − 本单），工序状态按量退回去
     WorkOrderOperation operation = requireOperation(workOrder, model.getWorkOrderOperationId());
     workOrder.applyOperationTotals(
         operation.getId(),
         operation.getProducedQty().subtract(model.getGoodQty()),
-        operation.getActualCycleTime().subtract(model.getWorkTime()));
+        operation.getActualCycleTime().subtract(model.getWorkTime()),
+        moment);
     return model;
   }
 

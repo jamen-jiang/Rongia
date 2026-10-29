@@ -27,8 +27,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>下单时的默认价取供应商物料卡上的采购价，供应商料号从那张卡带出来，这两件都在应用层拼，行本身只认传进来的数。
  *
- * <p>已收数量是收货单一次次累加上来的：一张单能分多次收，收完没有看它跟订单量比，不看单头状态（照 Odoo 的
- * {@code qty_received}）。
+ * <p>已收数量是净额：收货单一次次累加、退货单再减回来，收完没有看它跟订单量比，不看单头状态（照 Odoo 的
+ * {@code qty_received}）。退货数量单独记一份，把净额加回去就是一共收到过多少，对账时要看的是这个。
  */
 @NullMarked
 @Getter
@@ -66,9 +66,13 @@ public class PurchaseOrderLine extends BaseDeleteEntity {
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
   private BigDecimal qty;
 
-  /** 已收数量（收货单一次次累加，初值 0） */
+  /** 已收数量（净额：收货累加、退货减回，初值 0） */
   @Column(name = "ReceivedQty", nullable = false, precision = 18, scale = 2)
   private BigDecimal receivedQty;
+
+  /** 退货数量（退货一次次累加，初值 0） */
+  @Column(name = "ReturnedQty", nullable = false, precision = 18, scale = 2)
+  private BigDecimal returnedQty;
 
   /** 单位Id */
   @Column(name = "UnitId", nullable = false)
@@ -138,6 +142,7 @@ public class PurchaseOrderLine extends BaseDeleteEntity {
         taxRateId,
         taxRate);
     this.receivedQty = BigDecimal.ZERO;
+    this.returnedQty = BigDecimal.ZERO;
   }
 
   /**
@@ -270,6 +275,26 @@ public class PurchaseOrderLine extends BaseDeleteEntity {
           "物料" + this.variantId + "超收：订单" + this.qty + "，累计收货将达" + total);
     }
     this.receivedQty = total;
+  }
+
+  /**
+   * 退货：已收数量减回去，退货数量累加上去
+   *
+   * <p>已收数量是净额（收多少减退多少），所以退货的上限就是当前的已收数量：退超过它，等于要把还没到的货也退掉。
+   *
+   * @param qty 本次退货数量
+   * @throws DomainException 数量非正、或退货超过已收数量时抛出
+   */
+  public void unreceive(BigDecimal qty) {
+    if (qty.signum() <= 0) {
+      throw new DomainException("退货数量必须大于0");
+    }
+    if (qty.compareTo(this.receivedQty) > 0) {
+      throw new DomainException(
+          "物料" + this.variantId + "退货超过已收数量" + this.receivedQty);
+    }
+    this.receivedQty = this.receivedQty.subtract(qty);
+    this.returnedQty = this.returnedQty.add(qty);
   }
 
   /**

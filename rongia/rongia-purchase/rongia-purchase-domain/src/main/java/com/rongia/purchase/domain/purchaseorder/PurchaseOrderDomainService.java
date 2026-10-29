@@ -183,11 +183,29 @@ public class PurchaseOrderDomainService {
    * @param purchaseOrderLineId 采购单行Id
    * @param qty 本次收货数量
    * @return 采购单聚合
-   * @throws DomainException 采购单不存在、单据未确认或已取消、行不存在、或累计收货超过订单量时抛出
+   * @throws DomainException 采购单不存在、单据未确认/已取消/已关闭、行不存在、或累计收货超过订单量时抛出
    */
   public PurchaseOrder receive(long id, long purchaseOrderLineId, BigDecimal qty) {
     PurchaseOrder model = getExist(id);
     model.receive(purchaseOrderLineId, qty);
+    return model;
+  }
+
+  /**
+   * 退货：把某一行的已收数量减回去，退货数量累加上去
+   *
+   * <p>开采购退货出库单由应用层在同一个事务里编排：本方法只动采购行上的两个数量，
+   * 库存那半边由库存模块开一张「采购退货」单记账。
+   *
+   * @param id 采购单Id
+   * @param purchaseOrderLineId 采购单行Id
+   * @param qty 本次退货数量
+   * @return 采购单聚合
+   * @throws DomainException 采购单不存在、单据未确认/已取消/已关闭、行不存在、或退货超过已收数量时抛出
+   */
+  public PurchaseOrder unreceive(long id, long purchaseOrderLineId, BigDecimal qty) {
+    PurchaseOrder model = getExist(id);
+    model.unreceive(purchaseOrderLineId, qty);
     return model;
   }
 

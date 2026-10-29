@@ -24,7 +24,7 @@ import org.jspecify.annotations.Nullable;
  * <p>工单下达时从工艺路线「快照」生成：工序名、工作中心名与工时都冗余存一份，之后路线改版不影响在制工单。
  *
  * <p>这里只保存工序自己的事实（已完成数量、累计报废、累计工时、实际起止），不保存「计划投入数量」。工序可投入多少 由前置工序的产出决定，是运行时派生值，由 {@code WorkOrder}
- * 计算后传入报工校验——把它在本行存成静态字段， 下达时前置工序还没开工，根本取不到值。
+ * 计算后传入报工校验——把它在本行存成静态字段， 下达时前置工序还没报工，根本取不到值。
  */
 @NullMarked
 @Getter
@@ -87,12 +87,12 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Nullable
   private LocalDateTime plannedEndTime;
 
-  /** 实际开工时间（开工时落，照 ERPNext 的 actual_start_time；外协工序为发出时间） */
+  /** 实际开工时间（第一笔报工时落，照 ERPNext 的 actual_start_time；外协工序为发出时间） */
   @Column(name = "ActualStartTime")
   @Nullable
   private LocalDateTime actualStartTime;
 
-  /** 实际完工时间（完工时落，照 ERPNext 的 actual_end_time） */
+  /** 实际完工时间（累计良品报满可投入量时落，照 ERPNext 的 actual_end_time） */
   @Column(name = "ActualEndTime")
   @Nullable
   private LocalDateTime actualEndTime;
@@ -109,7 +109,7 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Column(name = "Sequence", nullable = false)
   private Integer sequence;
 
-  /** 状态编码，取值见 {@link WorkOrderOperationStatusEnum} */
+  /** 状态编码，取值见 {@link WorkOrderOperationStatusEnum}：按累计良品对可投入量算出来，不单独改 */
   @Nationalized
   @Column(name = "Status", nullable = false, length = 50)
   private String status;
@@ -160,18 +160,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 标记为可开工
-   *
-   * <p>三档下没有「可开工」这一档：能不能开工由工单按前置工序是否完工现算，这里只负责把状态从「未开始」
-   * 推进到「加工中」之前的合法性交给调用方判断。
-   */
-  void ensureStartable() {
-    if (!isPending()) {
-      throw new DomainException("工序" + this.operationName + "当前状态不允许开工");
-    }
-  }
-
-  /**
    * 排产：铺计划开工与计划完工时间
    *
    * <p>只写计划两列，不碰实际列——原计划与实际执行各存各的，事后才查得出拖了多久。
@@ -192,94 +180,60 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 开工（外协工序即发料给供应商）
+   * 报工校验：本次数量必须非负
    *
-   * @param actualStartTime 实际开工时间
-   * @throws DomainException 当前状态不允许开工时抛出
-   */
-  public void start(LocalDateTime actualStartTime) {
-    ensureStartable();
-    this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
-    this.actualStartTime = actualStartTime;
-  }
-
-  /**
-   * 报工校验：工序必须开工、本次数量必须非负
-   *
-   * <p>合计不在这里累加——良品、报废、工时的权威数在报工单流水里，由报工侧按流水汇总回写
-   * {@code applyOperationTotals}；本方法只把关（照 ERPNext：校验在工序行、记账在明细）。
+   * <p>不要求先开工：工序状态由累计良品对可投入量算出来，报第一笔就是开工。合计不在这里累加——良品、报废、
+   * 工时的权威数在报工单流水里，由报工侧按流水汇总回写 {@code applyOperationTotals}。
    *
    * @param producedQty 本次完成数量
-   * @throws DomainException 工序状态不允许或数量为负时抛出
+   * @throws DomainException 数量为负时抛出
    */
   public void report(BigDecimal producedQty) {
-    if (!isInProgress()) {
-      throw new DomainException("工序" + this.operationName + "未开工，不能报工");
-    }
     if (producedQty.signum() < 0) {
       throw new DomainException("报工数量不能为负数");
     }
   }
 
   /**
-   * 撤回报工的行级校验与状态回退
+   * 回写流水汇总的合计，并按数量定状态（照 ERPNext 的 update_operation_status）
    *
-   * <p>数量回退不在这里做——权威数在报工单流水里，由报工侧重算回写。这里只负责：工序被撤空时退回加工中
-   * 并清掉完工时间（照 ERPNext 的作业卡取消节奏）。
-   *
-   * @throws DomainException 工序未开工时抛出
-   */
-  void unreport() {
-    if (!isInProgress() && !isCompleted()) {
-      throw new DomainException("工序" + this.operationName + "未开工，不能撤回报工");
-    }
-  }
-
-  /**
-   * 回写流水汇总的合计（落库的只读列，报工侧按流水汇总后回写）
-   *
-   * <p>由报工侧按报工单流水汇总后调用：报工单过账、作废之后各跑一遍，行上的状态推进（撤空退回加工中）也在这
-   * 一并做掉。报废不落行（照 Odoo 的 qty_produced 单一口径，报废的权威数在报工单流水里）。
+   * <p>没有「点完工」：累计良品为 0 是未开始，小于可投入量是加工中，够了就是已完工。报废不进这个判据——
+   * 报废件不产出下道能吃的东西，它只算工时。实际起止时间跟着第一笔报工与报满那一刻落，撤回把状态退回去。
    *
    * @param producedQty 流水已完成数量
    * @param actualCycleTime 流水累计工时
+   * @param availableQty 本工序可投入数量
+   * @param moment 报工时刻
    */
-  void applyOperationTotals(BigDecimal producedQty, BigDecimal actualCycleTime) {
+  void applyOperationTotals(
+      BigDecimal producedQty,
+      BigDecimal actualCycleTime,
+      BigDecimal availableQty,
+      LocalDateTime moment) {
     this.producedQty = producedQty;
     this.actualCycleTime = actualCycleTime;
-    if (isCompleted() && producedQty.signum() == 0) {
-      this.status = WorkOrderOperationStatusEnum.IN_PROGRESS.getCode();
+    if (producedQty.signum() == 0) {
+      this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
+      this.actualStartTime = null;
       this.actualEndTime = null;
+      return;
     }
-  }
-
-  /**
-   * 完工
-   *
-   * @param actualEndTime 实际完工时间
-   * @throws DomainException 未开工、或外协工序未回厂时抛出
-   */
-  void complete(LocalDateTime actualEndTime) {
-    if (!isInProgress()) {
-      throw new DomainException("工序" + this.operationName + "未开工，不能完工");
+    if (this.actualStartTime == null) {
+      this.actualStartTime = moment;
     }
-    this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
-    this.actualEndTime = actualEndTime;
+    if (producedQty.compareTo(availableQty) >= 0) {
+      this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
+      this.actualEndTime = this.actualEndTime == null ? moment : this.actualEndTime;
+      return;
+    }
+    this.status = WorkOrderOperationStatusEnum.WORK_IN_PROGRESS.getCode();
+    this.actualEndTime = null;
   }
 
   /**
-   * 是否已结束
+   * 是否已经报过工（已完成数量不为零）
    *
-   * @return true 表示已完工
-   */
-  boolean isFinished() {
-    return isCompleted();
-  }
-
-  /**
-   * 是否已经报过工（已完成数量加报废不为零）
-   *
-   * <p>撤回前面的报工要看后面这道工序有没有用掉料，状态说了不算——它可能刚被撤回退回加工中。
+   * <p>撤回前面的报工要看后面这道工序有没有用掉料，状态说了不算——状态是按量算的。
    *
    * @return true 表示累计报工数不为零
    */
@@ -288,21 +242,12 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 是否未开始
-   *
-   * @return true 表示未开始
-   */
-  boolean isPending() {
-    return WorkOrderOperationStatusEnum.PENDING.getCode().equals(this.status);
-  }
-
-  /**
    * 是否加工中（外协工序表示已发出待回厂）
    *
    * @return true 表示加工中
    */
   boolean isInProgress() {
-    return WorkOrderOperationStatusEnum.IN_PROGRESS.getCode().equals(this.status);
+    return WorkOrderOperationStatusEnum.WORK_IN_PROGRESS.getCode().equals(this.status);
   }
 
   /**

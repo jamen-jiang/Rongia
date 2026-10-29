@@ -282,11 +282,26 @@ public class PurchaseOrder extends OrderAggregateRoot {
    *
    * @param purchaseOrderLineId 采购单行Id
    * @param qty 本次收货数量
-   * @throws DomainException 单据未确认或已取消、行不存在、或累计收货超过订单量时抛出
+   * @throws DomainException 单据未确认、已取消或已关闭、行不存在、或累计收货超过订单量时抛出
    */
   public void receive(long purchaseOrderLineId, BigDecimal qty) {
-    ensureReceivable();
+    ensureReceivable("收货");
     requireLine(purchaseOrderLineId).receive(qty);
+  }
+
+  /**
+   * 退货：把某一行的已收数量减回去，退货数量累加上去
+   *
+   * <p>货从仓库退回供应商，库存那边开一张「采购退货」出库单；这里只动行上的两个数量。
+   * 从哪个库位出去不在这里——可能是退货区，不是当初收进来的那个库位。
+   *
+   * @param purchaseOrderLineId 采购单行Id
+   * @param qty 本次退货数量
+   * @throws DomainException 单据未确认、已取消或已关闭、行不存在、或退货超过已收数量时抛出
+   */
+  public void unreceive(long purchaseOrderLineId, BigDecimal qty) {
+    ensureReceivable("退货");
+    requireLine(purchaseOrderLineId).unreceive(qty);
   }
 
   /**
@@ -403,21 +418,22 @@ public class PurchaseOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 校验单据允许收货
+   * 校验单据允许动已收数量
    *
-   * <p>草稿还没确认、取消了的不要了，这两种都不该再往行上累加已收数量。
+   * <p>草稿还没确认、取消了的不要了、关闭了的结了案，这三种都不该再动行上的已收数量——收货和退货都走这一道。
    *
-   * @throws DomainException 单据未确认或已取消时抛出
+   * @param action 动作名，用在提示里
+   * @throws DomainException 单据未确认、已取消或已关闭时抛出
    */
-  private void ensureReceivable() {
+  private void ensureReceivable(String action) {
     if (isDraft()) {
-      throw new DomainException("采购单未确认，不能收货");
+      throw new DomainException("采购单未确认，不能" + action);
     }
     if (isCancelled()) {
-      throw new DomainException("采购单已取消，不能收货");
+      throw new DomainException("采购单已取消，不能" + action);
     }
     if (isClosed()) {
-      throw new DomainException("采购单已关闭，不能收货");
+      throw new DomainException("采购单已关闭，不能" + action);
     }
   }
 

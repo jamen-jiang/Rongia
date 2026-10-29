@@ -85,7 +85,6 @@ public class WorkOrderDomainService {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
-   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
    * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
@@ -103,7 +102,6 @@ public class WorkOrderDomainService {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
-      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
@@ -120,7 +118,6 @@ public class WorkOrderDomainService {
         sourceType,
         sourceId,
         sourceNumber,
-        priority,
         bomId,
         routingId,
         materialId,
@@ -142,7 +139,6 @@ public class WorkOrderDomainService {
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
-   * @param priority 优先级编码（照 Odoo 的 priority：Normal 普通 / Urgent 紧急）
    * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
    * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
@@ -162,7 +158,6 @@ public class WorkOrderDomainService {
       String sourceType,
       @Nullable Long sourceId,
       @Nullable String sourceNumber,
-      String priority,
       @Nullable Long bomId,
       @Nullable Long routingId,
       long materialId,
@@ -179,7 +174,6 @@ public class WorkOrderDomainService {
         sourceType,
         sourceId,
         sourceNumber,
-        priority,
         bomId,
         routingId,
         materialId,

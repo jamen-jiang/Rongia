@@ -27,17 +27,15 @@ public class WorkOrderFactory {
    *
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
+   * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
-   * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
-   * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param startTime 开工时间（可空，排产时填计划，照 Odoo 的 date_start 语义)
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcLocationId 发料库位Id
-   * @param destLocationId 成品收货库位Id
+   * @param locationId 收货库位Id
 
    * @param remark 备注（可空）
    * @param number 工单号（传空串表示由 OrderAddedEvent 的监听器分配）
@@ -47,17 +45,15 @@ public class WorkOrderFactory {
   public WorkOrder create(
       String sourceType,
       @Nullable Long sourceId,
+      @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
-      @Nullable Long bomId,
-      @Nullable Long routingId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcLocationId,
-      long destLocationId,
+      long locationId,
       @Nullable String remark,
       String number) {
     // 单号非空时才校验唯一，空串代表尚未分配
@@ -67,17 +63,15 @@ public class WorkOrderFactory {
     return new WorkOrder(
         sourceType,
         sourceId,
+        sourceLineId,
         sourceNumber,
-        bomId,
-        routingId,
         materialId,
         variantId,
         deliveryTime,
         startTime,
         qty,
         unitId,
-        srcLocationId,
-        destLocationId,
+        locationId,
         remark,
         number);
   }

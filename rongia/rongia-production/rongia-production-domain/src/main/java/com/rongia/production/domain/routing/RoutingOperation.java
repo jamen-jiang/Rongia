@@ -16,9 +16,12 @@ import org.jspecify.annotations.NullMarked;
 /**
  * 路线工序（工艺路线上的一道工序）
  *
- * <p>描述「这道工序在这条路线上怎么做」：顺序、工作中心、工时与批量。工序本身是什么由 {@code Operation}
- * 定义，这里只引用它的 Id，并在建行时把工序字典与工作中心上的默认值抄一份——之后路线自己说了算，
- * 工序字典改默认值不影响已有路线。
+ * <p>描述「这道工序在这条路线上怎么做」：顺序、工作中心、三段工时。工序本身是什么由 {@code Operation}
+ * 定义，这里只引用它的 Id；费率不在这里——它归工作中心。
+ *
+ * <p>三段工时各管一段成本：准备是每批一次（装夹调机），人工与机器按件计。分开记才能让三个费率各有乘数：
+ * 人工工时乘人工费率、机器工时乘机器费率、总工时乘制造费用率。一炉多少件不在这里，那是设备的属性，
+ * 记在工作中心的批次上限上。
  *
  * <p>它是路线的子行：一份配方要做不同工序，就配一条不同的路线；BOM 通过 {@code routingId} 挑路线，
  * 用料行通过 {@code routingOperationId} 指到「消耗在哪道工序」。
@@ -51,17 +54,17 @@ public class RoutingOperation extends BaseDeleteEntity {
   @Column(name = "WorkCenterId", nullable = false)
   private Long workCenterId;
 
-  /** 周期时间（分钟）：做一次加工循环要多久 */
-  @Column(name = "CycleTime", nullable = false, precision = 18, scale = 2)
-  private BigDecimal cycleTime;
+  /** 准备时间（分钟，每批一次，照 carbon 的 setupTime）：装夹调机，与数量无关 */
+  @Column(name = "SetupTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal setupTime;
 
-  /** 批量大小（件）：一次投产多少件，0 表示不分批 */
-  @Column(name = "BatchSize", nullable = false, precision = 18, scale = 2)
-  private BigDecimal batchSize;
+  /** 人工时间（分钟/件，照 carbon 的 laborTime）：一件要一个人干多久 */
+  @Column(name = "LaborTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal laborTime;
 
-  /** 小时费率（元/小时）：建行时从工作中心带出来，之后可按这条行改 */
-  @Column(name = "HourlyRate", nullable = false, precision = 18, scale = 2)
-  private BigDecimal hourlyRate;
+  /** 机器时间（分钟/件，照 carbon 的 machineTime）：一件要让机器转多久 */
+  @Column(name = "MachineTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal machineTime;
 
   /** 工序顺序 */
   @Column(name = "Sequence", nullable = false)
@@ -72,19 +75,19 @@ public class RoutingOperation extends BaseDeleteEntity {
    *
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率（元/小时）
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
    * @param sequence 工序顺序
    */
   RoutingOperation(
       long operationId,
       long workCenterId,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
       int sequence) {
-    apply(operationId, workCenterId, cycleTime, batchSize, hourlyRate, sequence);
+    apply(operationId, workCenterId, setupTime, laborTime, machineTime, sequence);
   }
 
   /**
@@ -92,19 +95,19 @@ public class RoutingOperation extends BaseDeleteEntity {
    *
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率（元/小时）
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
    * @param sequence 工序顺序
    */
   void modify(
       long operationId,
       long workCenterId,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
       int sequence) {
-    apply(operationId, workCenterId, cycleTime, batchSize, hourlyRate, sequence);
+    apply(operationId, workCenterId, setupTime, laborTime, machineTime, sequence);
   }
 
   // ==================== 私有：校验与赋值 ====================
@@ -114,18 +117,18 @@ public class RoutingOperation extends BaseDeleteEntity {
    *
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率（元/小时）
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
    * @param sequence 工序顺序
-   * @throws DomainException 工序、工作中心、顺序、工时、批量或费率非法时抛出
+   * @throws DomainException 工序、工作中心、顺序非法，或任一段工时为负数时抛出
    */
   private void apply(
       long operationId,
       long workCenterId,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
       int sequence) {
     if (sequence <= 0) {
       throw new DomainException("工序顺序必须大于0");
@@ -136,15 +139,15 @@ public class RoutingOperation extends BaseDeleteEntity {
     if (workCenterId <= 0) {
       throw new DomainException("工作中心不能为空");
     }
-    validateNonNegative("周期时间", cycleTime);
-    validateNonNegative("批量大小", batchSize);
-    validateNonNegative("小时费率", hourlyRate);
+    validateNonNegative("准备时间", setupTime);
+    validateNonNegative("人工时间", laborTime);
+    validateNonNegative("机器时间", machineTime);
 
     this.operationId = operationId;
     this.workCenterId = workCenterId;
-    this.cycleTime = cycleTime;
-    this.batchSize = batchSize;
-    this.hourlyRate = hourlyRate;
+    this.setupTime = setupTime;
+    this.laborTime = laborTime;
+    this.machineTime = machineTime;
     this.sequence = sequence;
   }
 

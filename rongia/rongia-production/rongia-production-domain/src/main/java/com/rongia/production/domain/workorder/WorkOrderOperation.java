@@ -7,7 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -65,41 +64,44 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Column(name = "WorkCenterName", nullable = false, length = 200)
   private String workCenterName;
 
-  /** 周期时间（分钟，快照） */
-  @Column(name = "CycleTime", nullable = false, precision = 18, scale = 2)
-  private BigDecimal cycleTime;
+  /** 准备时间（分钟，每批一次，快照，照 carbon 的 setupTime） */
+  @Column(name = "SetupTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal setupTime;
 
-  /** 批量大小（件，快照）：一次投产多少件，0 表示不分批 */
-  @Column(name = "BatchSize", nullable = false, precision = 18, scale = 2)
-  private BigDecimal batchSize;
+  /** 人工时间（分钟/件，快照，照 carbon 的 laborTime） */
+  @Column(name = "LaborTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal laborTime;
 
-  /** 小时费率（元/小时，快照）：下达时的中心费率，之后中心调价不影响在制工单 */
-  @Column(name = "HourlyRate", nullable = false, precision = 18, scale = 2)
-  private BigDecimal hourlyRate;
+  /** 机器时间（分钟/件，快照，照 carbon 的 machineTime） */
+  @Column(name = "MachineTime", nullable = false, precision = 18, scale = 2)
+  private BigDecimal machineTime;
 
-  /** 计划开工时间（排产铺定，照 ERPNext 的 planned_start_time） */
+  /** 人工费率（元/小时，快照，照 carbon 的 laborRate）：下达时中心的人工费率，之后调价不影响在制工单 */
+  @Column(name = "LaborRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal laborRate;
+
+  /** 机器费率（元/小时，快照，照 carbon 的 machineRate）：乘机器时间，算设备这一段成本 */
+  @Column(name = "MachineRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal machineRate;
+
+  /** 制造费用率（元/小时，快照，照 carbon 的 overheadRate）：乘总工时，摊厂房与管理开销 */
+  @Column(name = "OverheadRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal overheadRate;
+
+  /** 本工序应完成时间（从工单交期沿工序链反推，照 carbon 的 dueDate；工单没有交期时为空） */
+  @Column(name = "DeliveryTime")
+  @Nullable
+  private LocalDateTime deliveryTime;
+
+  /** 计划开工时间（排产铺定，照 carbon 的 startDate） */
   @Column(name = "PlannedStartTime")
   @Nullable
   private LocalDateTime plannedStartTime;
 
-  /** 计划完工时间（排产铺定，照 ERPNext 的 planned_end_time） */
-  @Column(name = "PlannedEndTime")
+  /** 预计完工时间（排产按工时算出来的结论，照 carbon 的 projectedEndTime） */
+  @Column(name = "ProjectedEndTime")
   @Nullable
-  private LocalDateTime plannedEndTime;
-
-  /** 实际开工时间（第一笔报工时落，照 ERPNext 的 actual_start_time；外协工序为发出时间） */
-  @Column(name = "ActualStartTime")
-  @Nullable
-  private LocalDateTime actualStartTime;
-
-  /** 实际完工时间（累计良品报满可投入量时落，照 ERPNext 的 actual_end_time） */
-  @Column(name = "ActualEndTime")
-  @Nullable
-  private LocalDateTime actualEndTime;
-
-  /** 实际周期时间（分钟，只读；报工侧按报工单流水汇总回写，照 ERPNext 的 actual_operation_time 口径） */
-  @Column(name = "ActualCycleTime", nullable = false, precision = 18, scale = 2)
-  private BigDecimal actualCycleTime = BigDecimal.ZERO;
+  private LocalDateTime projectedEndTime;
 
   /** 已完成数量数量（只读；报工侧按报工单流水汇总回写，照 ERPNext 的 completed_qty 口径） */
   @Column(name = "ProducedQty", nullable = false, precision = 18, scale = 2)
@@ -121,9 +123,12 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * @param operationName 工序名称（快照）
    * @param workCenterId 工作中心Id
    * @param workCenterName 工作中心名称（快照）
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
    * @param sequence 工序顺序
    */
   WorkOrderOperation(
@@ -131,18 +136,24 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       String operationName,
       long workCenterId,
       String workCenterName,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
       int sequence) {
     apply(
         operationId,
         operationName,
         workCenterId,
         workCenterName,
-        cycleTime,
-        batchSize,
-        hourlyRate,
+        setupTime,
+        laborTime,
+        machineTime,
+        laborRate,
+        machineRate,
+        overheadRate,
         sequence);
     this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
   }
@@ -150,33 +161,49 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   /**
    * 本道工序占用的总时长（分钟）
    *
-   * <p>准备 + 加工，不含排队——排队是「等上道做完」的时间，用工序顺序体现，重复算会把工期撑大。
+   * <p>准备按每批一次记，人工与机器按件累加：准备 + (人工 + 机器) × 数量。不含排队——排队是「等上道做完」的时间，
+   * 用工序顺序体现，重复算会把工期撑大。
    *
    * @param qty 计划数量
    * @return 总时长（分钟）
+   * @throws DomainException 数量为负时抛出
    */
   public BigDecimal estimatedMinutes(BigDecimal qty) {
-    return estimatedRunMinutes(qty);
+    checkQty(qty);
+    return this.setupTime.add(this.laborTime.add(this.machineTime).multiply(qty));
   }
 
   /**
-   * 排产：铺计划开工与计划完工时间
+   * 排产：铺计划开工与预计完工
    *
-   * <p>只写计划两列，不碰实际列——原计划与实际执行各存各的，事后才查得出拖了多久。
+   * <p>两个都是算出来的：开工是从工单开工顺着工序链推的，完工是再加工时。实际干到哪儿不在这里——
+   * 那由报工流水和状态体现。
    *
    * @param plannedStartTime 计划开工时间
-   * @param plannedEndTime 计划完工时间
+   * @param projectedEndTime 预计完工时间
    * @throws DomainException 时间倒挂或工序已开工时抛出
    */
-  void schedule(LocalDateTime plannedStartTime, LocalDateTime plannedEndTime) {
+  void schedule(LocalDateTime plannedStartTime, LocalDateTime projectedEndTime) {
     if (isInProgress() || isCompleted()) {
       throw new DomainException("工序" + this.operationName + "已开工，不能再排产");
     }
-    if (plannedEndTime.isBefore(plannedStartTime)) {
-      throw new DomainException("工序" + this.operationName + "计划完工时间早于计划开工时间");
+    if (projectedEndTime.isBefore(plannedStartTime)) {
+      throw new DomainException("工序" + this.operationName + "预计完工早于计划开工");
     }
     this.plannedStartTime = plannedStartTime;
-    this.plannedEndTime = plannedEndTime;
+    this.projectedEndTime = projectedEndTime;
+  }
+
+  /**
+   * 回填本工序的应完成时间
+   *
+   * <p>不是排产铺的，是从工单交期倒推出来的：要让整张单按时交，这道工序最晚什么时候得做完。
+   * 工单没有交期时传空。
+   *
+   * @param deliveryTime 本工序应完成时间（可空）
+   */
+  void fillDeliveryTime(@Nullable LocalDateTime deliveryTime) {
+    this.deliveryTime = deliveryTime;
   }
 
   /**
@@ -198,36 +225,24 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * 回写流水汇总的合计，并按数量定状态（照 ERPNext 的 update_operation_status）
    *
    * <p>没有「点完工」：累计良品为 0 是未开始，小于可投入量是加工中，够了就是已完工。报废不进这个判据——
-   * 报废件不产出下道能吃的东西，它只算工时。实际起止时间跟着第一笔报工与报满那一刻落，撤回把状态退回去。
+   * 报废件不产出下道能吃的东西，它只算工时。撤回把状态退回去。
    *
    * @param producedQty 流水已完成数量
-   * @param actualCycleTime 流水累计工时
    * @param availableQty 本工序可投入数量
-   * @param moment 报工时刻
    */
   void applyOperationTotals(
       BigDecimal producedQty,
-      BigDecimal actualCycleTime,
-      BigDecimal availableQty,
-      LocalDateTime moment) {
+      BigDecimal availableQty) {
     this.producedQty = producedQty;
-    this.actualCycleTime = actualCycleTime;
     if (producedQty.signum() == 0) {
       this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
-      this.actualStartTime = null;
-      this.actualEndTime = null;
       return;
-    }
-    if (this.actualStartTime == null) {
-      this.actualStartTime = moment;
     }
     if (producedQty.compareTo(availableQty) >= 0) {
       this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
-      this.actualEndTime = this.actualEndTime == null ? moment : this.actualEndTime;
       return;
     }
     this.status = WorkOrderOperationStatusEnum.WORK_IN_PROGRESS.getCode();
-    this.actualEndTime = null;
   }
 
   /**
@@ -259,27 +274,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
     return WorkOrderOperationStatusEnum.COMPLETED.getCode().equals(this.status);
   }
 
-  // ==================== 估算：工时与成本 ====================
-
-  /**
-   * 估算周期时间（分钟）
-   *
-   * <p>一次循环做 {@code batchSize} 件，所以循环次数是「数量 ÷ 批量」向上取整，再乘单次循环工时。批量 0 表示不分批，
-   * 按单件循环算。{@code cycleTime} 是固定工时，取历史平均需要仓储支持，本版本按固定工时兜底。
-   *
-   * @param qty 计划数量
-   * @return 估算周期时间（分钟）
-   * @throws DomainException 数量为负时抛出
-   */
-  public BigDecimal estimatedRunMinutes(BigDecimal qty) {
-    checkQty(qty);
-    if (this.batchSize.signum() <= 0) {
-      return this.cycleTime.multiply(qty);
-    }
-    BigDecimal cycles = qty.divide(this.batchSize, 0, RoundingMode.CEILING);
-    return this.cycleTime.multiply(cycles);
-  }
-
   // ==================== 私有：校验与赋值 ====================
 
   /**
@@ -289,9 +283,12 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * @param operationName 工序名称（快照）
    * @param workCenterId 工作中心Id
    * @param workCenterName 工作中心名称（快照）
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
    * @param sequence 工序顺序
    * @throws DomainException 快照字段非法时抛出
    */
@@ -300,9 +297,12 @@ public class WorkOrderOperation extends BaseDeleteEntity {
       String operationName,
       long workCenterId,
       String workCenterName,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
       int sequence) {
     if (sequence <= 0) {
       throw new DomainException("工序顺序必须大于0");
@@ -321,17 +321,23 @@ public class WorkOrderOperation extends BaseDeleteEntity {
     if (trimmedWorkCenterName == null) {
       throw new DomainException("工作中心名称不能为空");
     }
-    validateNonNegative("周期时间", cycleTime);
-    validateNonNegative("批量大小", batchSize);
-    validateNonNegative("小时费率", hourlyRate);
+    validateNonNegative("准备时间", setupTime);
+    validateNonNegative("人工时间", laborTime);
+    validateNonNegative("机器时间", machineTime);
+    validateNonNegative("人工费率", laborRate);
+    validateNonNegative("机器费率", machineRate);
+    validateNonNegative("制造费用率", overheadRate);
 
     this.operationId = operationId;
     this.operationName = trimmedName;
     this.workCenterId = workCenterId;
     this.workCenterName = trimmedWorkCenterName;
-    this.cycleTime = cycleTime;
-    this.batchSize = batchSize;
-    this.hourlyRate = hourlyRate;
+    this.setupTime = setupTime;
+    this.laborTime = laborTime;
+    this.machineTime = machineTime;
+    this.laborRate = laborRate;
+    this.machineRate = machineRate;
+    this.overheadRate = overheadRate;
     this.sequence = sequence;
   }
 

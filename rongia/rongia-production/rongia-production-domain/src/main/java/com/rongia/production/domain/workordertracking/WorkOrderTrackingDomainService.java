@@ -85,10 +85,7 @@ public class WorkOrderTrackingDomainService {
     checkReportGate(workOrder, operation, goodQty);
     // 回写：本单生效后的流水合计（现有合计 + 本单），工序状态按量重算
     workOrder.applyOperationTotals(
-        operation.getId(),
-        operation.getProducedQty().add(goodQty),
-        operation.getActualCycleTime().add(minutes),
-        moment);
+        operation.getId(), operation.getProducedQty().add(goodQty), moment);
     return trackingFactory.create(
         workOrder.getId(),
         workOrder.getNumber(),
@@ -129,10 +126,7 @@ public class WorkOrderTrackingDomainService {
     // 回写：本单作废后的流水合计（现有合计 − 本单），工序状态按量退回去
     WorkOrderOperation operation = requireOperation(workOrder, model.getWorkOrderOperationId());
     workOrder.applyOperationTotals(
-        operation.getId(),
-        operation.getProducedQty().subtract(model.getGoodQty()),
-        operation.getActualCycleTime().subtract(model.getWorkTime()),
-        moment);
+        operation.getId(), operation.getProducedQty().subtract(model.getGoodQty()), moment);
     return model;
   }
 
@@ -208,22 +202,16 @@ public class WorkOrderTrackingDomainService {
   }
 
   /**
-   * 定本次工时：现场填了就用现场的，没填就按工序标准时间算
+   * 定本次工时：现场填了就用现场的，没填就按工序标准工时算
    *
-   * <p>产出量取良品加报废——报废件同样吃掉了加工时间。准备工时只在该工序还没有任何报工时补一次，
-   * 否则一道分三次报完的工序会把装夹调机算三遍。估算口径复用
-   * {@code WorkOrderOperation#estimatedRunMinutes} 与 {@code estimatedSetupMinutes}，按批取时的工序
-   * 不足一批也按整批的标准工时计。
-   *
-   * <p>「第一次」是看工序上已累计的报工量判的。因为建单即累加，连着报两张时第二张已经看得见第一张，
-   * 准备工时只会算一次。
+   * <p>产出量取良品加报废——报废件同样吃掉了加工时间。口径是「准备 + (人工 + 机器) × 本次产出」，
+   * 与排产估工同一个算法（{@code WorkOrderOperation#estimatedMinutes}）。
    *
    * @param operation 工单工序行
    * @param goodQty 本次良品数量
    * @param lossQty 本次报废数量
    * @param workTime 现场填报工时（可空）
    * @return 本次工时（分钟）
-   * @throws DomainException 按批取时却没有标准批量时抛出
    */
   private BigDecimal resolveWorkTime(
       WorkOrderOperation operation,
@@ -234,7 +222,7 @@ public class WorkOrderTrackingDomainService {
       return workTime;
     }
     BigDecimal output = goodQty.add(lossQty);
-    BigDecimal minutes = operation.estimatedRunMinutes(output);
+    BigDecimal minutes = operation.estimatedMinutes(output);
     return minutes.setScale(MINUTE_SCALE, RoundingMode.HALF_UP);
   }
 

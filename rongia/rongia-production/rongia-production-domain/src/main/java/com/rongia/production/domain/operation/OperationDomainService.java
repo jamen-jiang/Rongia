@@ -1,7 +1,6 @@
 package com.rongia.production.domain.operation;
 
 import com.rongia.shared.domain.exception.DomainException;
-import java.math.BigDecimal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -31,27 +30,18 @@ public class OperationDomainService {
    *
    * @param code 工序代码
    * @param name 工序名称
-   * @param workCenterId 默认工作中心Id（可空）
-   * @param cycleTime 默认周期时间（分钟，可空）
-   * @param batchSize 默认批量大小（件，可空）
    * @param remark 备注（可空）
    * @return 工序聚合
    */
-  public Operation importGenerate(
-      String code,
-      String name,
-      @Nullable Long workCenterId,
-      @Nullable BigDecimal cycleTime,
-      @Nullable BigDecimal batchSize,
-      @Nullable String remark) {
+  public Operation importGenerate(String code, String name, @Nullable String remark) {
     // 按代码查工序
     Operation model = operationRepository.getByCode(code);
 
     // 不存在则创建，存在则修改
     if (model == null) {
-      model = operationFactory.create(code, name, workCenterId, cycleTime, batchSize, remark);
+      model = operationFactory.create(code, name, remark);
     } else {
-      modify(model, code, name, workCenterId, cycleTime, batchSize, remark);
+      modify(model, code, name, remark);
     }
 
     return model;
@@ -63,26 +53,16 @@ public class OperationDomainService {
    * @param id 工序Id
    * @param code 工序代码
    * @param name 工序名称
-   * @param workCenterId 默认工作中心Id（可空）
-   * @param cycleTime 默认周期时间（分钟，可空）
-   * @param batchSize 默认批量大小（件，可空）
    * @param remark 备注（可空）
    * @return 工序聚合
    * @throws DomainException 工序不存在时抛出
    */
-  public Operation modify(
-      long id,
-      String code,
-      String name,
-      @Nullable Long workCenterId,
-      @Nullable BigDecimal cycleTime,
-      @Nullable BigDecimal batchSize,
-      @Nullable String remark) {
+  public Operation modify(long id, String code, String name, @Nullable String remark) {
     Operation model = operationRepository.get(id);
     if (model == null) {
       throw new DomainException("工序" + id + "不存在!");
     }
-    modify(model, code, name, workCenterId, cycleTime, batchSize, remark);
+    modify(model, code, name, remark);
     return model;
   }
 
@@ -92,24 +72,14 @@ public class OperationDomainService {
    * @param model 工序
    * @param code 工序代码
    * @param name 工序名称
-   * @param workCenterId 默认工作中心Id（可空）
-   * @param cycleTime 默认周期时间（分钟，可空）
-   * @param batchSize 默认批量大小（件，可空）
    * @param remark 备注（可空）
    * @throws DomainException 工序代码已被其它工序占用时抛出
    */
-  public void modify(
-      Operation model,
-      String code,
-      String name,
-      @Nullable Long workCenterId,
-      @Nullable BigDecimal cycleTime,
-      @Nullable BigDecimal batchSize,
-      @Nullable String remark) {
+  public void modify(Operation model, String code, String name, @Nullable String remark) {
     // 校验工序代码唯一
     if (operationRepository.isExistByCodeExcludeId(code, model.getId())) {
       throw new DomainException("工序代码" + code + "已存在!");
     }
-    model.modify(code, name, workCenterId, cycleTime, batchSize, remark);
+    model.modify(code, name, remark);
   }
 }

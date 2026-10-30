@@ -109,25 +109,25 @@ public class Routing extends UpdateAggregateRoot {
    *
    * @param operationId 工序Id
    * @param workCenterId 工作中心Id
-   * @param cycleTime 周期时间（分钟）
-   * @param batchSize 批量大小（件）
-   * @param hourlyRate 小时费率（元/小时）
+   * @param setupTime 准备时间（分钟，每批一次）
+   * @param laborTime 人工时间（分钟/件）
+   * @param machineTime 机器时间（分钟/件）
    * @param sequence 工序顺序
    * @throws DomainException 工序顺序重复时抛出
    */
   public void addOperation(
       long operationId,
       long workCenterId,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
       int sequence) {
     if (findOperationBySequence(sequence) != null) {
       throw new DomainException("工序顺序" + sequence + "重复!");
     }
     routingOperations.add(
         new RoutingOperation(
-            operationId, workCenterId, cycleTime, batchSize, hourlyRate, sequence));
+            operationId, workCenterId, setupTime, laborTime, machineTime, sequence));
   }
 
   /**

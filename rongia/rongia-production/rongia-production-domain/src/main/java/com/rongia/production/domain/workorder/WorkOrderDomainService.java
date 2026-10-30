@@ -84,50 +84,44 @@ public class WorkOrderDomainService {
    *
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
+   * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
-   * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
-   * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param startTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcLocationId 发料库位Id
-   * @param destLocationId 成品收货库位Id
+   * @param locationId 收货库位Id
    * @param remark 备注（可空）
    * @return 工单聚合
    */
   public WorkOrder create(
       String sourceType,
       @Nullable Long sourceId,
+      @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
-      @Nullable Long bomId,
-      @Nullable Long routingId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcLocationId,
-      long destLocationId,
+      long locationId,
       @Nullable String remark) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return workOrderFactory.create(
         sourceType,
         sourceId,
+        sourceLineId,
         sourceNumber,
-        bomId,
-        routingId,
         materialId,
         variantId,
         deliveryTime,
         startTime,
         qty,
         unitId,
-        srcLocationId,
-        destLocationId,
+        locationId,
         remark,
         "");
   }
@@ -138,17 +132,15 @@ public class WorkOrderDomainService {
    * @param id 工单Id
    * @param sourceType 来源类型编码
    * @param sourceId 来源单据Id（可空，库存补货时为空）
+   * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
-   * @param bomId 指定BOM（可空，为空时下达自动取生效版本）
-   * @param routingId 指定工艺路线（可空，为空时下达自动取生效版本）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
    * @param startTime 计划开工时间（可空，排产时填）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param srcLocationId 发料库位Id
-   * @param destLocationId 成品收货库位Id
+   * @param locationId 收货库位Id
    * @param remark 备注（可空）
    * @return 工单聚合
    * @throws DomainException 工单不存在、非草稿状态时抛出
@@ -157,33 +149,29 @@ public class WorkOrderDomainService {
       long id,
       String sourceType,
       @Nullable Long sourceId,
+      @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
-      @Nullable Long bomId,
-      @Nullable Long routingId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long srcLocationId,
-      long destLocationId,
+      long locationId,
       @Nullable String remark) {
     WorkOrder model = getExist(id);
     model.modify(
         sourceType,
         sourceId,
+        sourceLineId,
         sourceNumber,
-        bomId,
-        routingId,
         materialId,
         variantId,
         deliveryTime,
         startTime,
         qty,
         unitId,
-        srcLocationId,
-        destLocationId,
+        locationId,
         remark);
     return model;
   }
@@ -191,34 +179,27 @@ public class WorkOrderDomainService {
   /**
    * 下达工单：按 BOM 展开用料、按工艺路线快照工序
    *
-   * <p>BOM 与路线都遵循「工单上指定优先，没指定才取生效版本」，且都按下达时点取版本：补一张上个月的单，
-   * 拿到的是上个月那一版配方与工艺，不是今天最新版。路线挂在物料系列上，工单没指定路线时，取该物料在
-   * 下达时点生效的主路线。
+   * <p>BOM 与路线都按下达时点取生效版本：补一张上个月的单，拿到的是上个月那一版配方与工艺，不是今天最新版。
+   * 工单上不存「用了哪份 BOM / 哪条路线」——配方在这一步整份抄进工单行，事后要看就是看单上的行。
    *
    * @param id 工单Id
-   * @param routingId 本次下达使用的工艺路线（可空，为空时取工单上指定的，再为空取物料的主路线）
+   * @param routingId 本次下达使用的工艺路线（可空，为空时取 BOM 上指定的路线）
+   * @param moment 下达时刻
    * @return 工单聚合
    * @throws DomainException 工单不存在、物料没有生效的主路线、路线在该时点不生效、引用的工序、工作中心或
    *     费率卡不可用时抛出
    */
-  public WorkOrder release(long id, @Nullable Long routingId) {
+  public WorkOrder release(long id, @Nullable Long routingId, LocalDateTime moment) {
     WorkOrder model = getExist(id);
 
-    // 1. 定 BOM：工单指定优先，其次取该父件未禁用的 BOM
-    Long resolvedBomId = model.getBomId();
-    Bom bom =
-        resolvedBomId == null
-            ? bomRepository.getEnabledByVariantId(model.getMaterialId(), model.getVariantId())
-            : bomRepository.get(resolvedBomId);
-    if (resolvedBomId != null && bom == null) {
-      throw new DomainException("BOM" + resolvedBomId + "不存在!");
-    }
+    // 1. 定 BOM：取该父件未禁用的 BOM
+    Bom bom = bomRepository.getEnabledByVariantId(model.getMaterialId(), model.getVariantId());
     if (bom != null && Boolean.TRUE.equals(bom.getDisabled())) {
       throw new DomainException("BOM" + bom.getId() + "已禁用，不能用于下达工单");
     }
 
-    // 2. 定路线：本次传入优先，其次用工单上指定的，再次用 BOM 上指定的
-    Long resolvedRoutingId = routingId == null ? model.getRoutingId() : routingId;
+    // 2. 定路线：本次传入优先，其次用 BOM 上指定的
+    Long resolvedRoutingId = routingId;
     if (resolvedRoutingId == null && bom != null) {
       resolvedRoutingId = bom.getRoutingId();
     }
@@ -244,9 +225,12 @@ public class WorkOrderDomainService {
           snapshot.operationName(),
           snapshot.workCenterId(),
           snapshot.workCenterName(),
-          snapshot.cycleTime(),
-          snapshot.batchSize(),
-          snapshot.hourlyRate(),
+          snapshot.setupTime(),
+          snapshot.laborTime(),
+          snapshot.machineTime(),
+          snapshot.laborRate(),
+          snapshot.machineRate(),
+          snapshot.overheadRate(),
           snapshot.sequence());
     }
     for (MaterialRequirement requirement : requirements) {
@@ -258,7 +242,7 @@ public class WorkOrderDomainService {
           requirement.requiredQty(),
           requirement.unitId());
     }
-    model.release(bom == null ? null : bom.getId(), routing.getId());
+    model.release(moment);
     scheduleOperations(model);
     return model;
   }
@@ -267,24 +251,24 @@ public class WorkOrderDomainService {
    * 排产：按工序周期链正向铺计划时间
    *
    * <p>工单头上有开工时间就从它起铺，没有则不铺（排产由车间之后手工补）。铺法照 ERPNext 的
-   * planned_start_time / planned_end_time：首道开工 = 工单开工时间，每道完工 = 开工 + 周期时间 × 计划数量，
+   * planned_start_time / planned_end_time：首道开工 = 工单开工时间，每道完工 = 开工 + (准备 + (人工 + 机器) × 计划数量)，
    * 下一道开工 = 上一道完工——线性流水，不排并行。
    *
    * @param model 已下达的工单
    */
   private void scheduleOperations(WorkOrder model) {
     LocalDateTime cursor = model.getPlannedStartTime();
-    if (cursor == null) {
-      return;
+    if (cursor != null) {
+      for (WorkOrderOperation operation : model.getWorkOrderOperations()) {
+        LocalDateTime end =
+            cursor.plusMinutes(
+                operation.estimatedMinutes(model.getQty()).longValue());
+        operation.schedule(cursor, end);
+        cursor = end;
+      }
+      model.fillProjectedEndTime(cursor);
     }
-    for (WorkOrderOperation operation : model.getWorkOrderOperations()) {
-      LocalDateTime end =
-          cursor.plusMinutes(
-              operation.estimatedMinutes(model.getQty()).longValue());
-      operation.schedule(cursor, end);
-      cursor = end;
-    }
-    model.fillEndTime(cursor);
+    model.fillOperationDeliveryTimes();
   }
 
   /**
@@ -354,9 +338,12 @@ public class WorkOrderDomainService {
               operation.getName(),
               workCenter.getId(),
               workCenter.getName(),
-              item.getCycleTime(),
-              item.getBatchSize(),
-              item.getHourlyRate(),
+              item.getSetupTime(),
+              item.getLaborTime(),
+              item.getMachineTime(),
+              workCenter.getLaborRate(),
+              workCenter.getMachineRate(),
+              workCenter.getOverheadRate(),
               item.getSequence()));
     }
     return List.copyOf(result);
@@ -474,9 +461,12 @@ public class WorkOrderDomainService {
       String operationName,
       Long workCenterId,
       String workCenterName,
-      BigDecimal cycleTime,
-      BigDecimal batchSize,
-      BigDecimal hourlyRate,
+      BigDecimal setupTime,
+      BigDecimal laborTime,
+      BigDecimal machineTime,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
       Integer sequence) {}
 
   /** 待装配的用料需求，字段与 {@link WorkOrder#addLine} 一一对应 */

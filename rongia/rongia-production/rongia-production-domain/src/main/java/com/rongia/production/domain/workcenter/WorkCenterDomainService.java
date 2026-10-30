@@ -32,8 +32,10 @@ public class WorkCenterDomainService {
    *
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
@@ -42,8 +44,10 @@ public class WorkCenterDomainService {
   public WorkCenter importGenerate(
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
@@ -56,8 +60,10 @@ public class WorkCenterDomainService {
           workCenterFactory.create(
               name,
               calendarId,
-              productionCapacity,
-              hourlyRate,
+              laborRate,
+              machineRate,
+              overheadRate,
+              batchCapacity,
               status,
               disabled,
               remark);
@@ -66,8 +72,10 @@ public class WorkCenterDomainService {
           model,
           name,
           calendarId,
-          productionCapacity,
-          hourlyRate,
+          laborRate,
+          machineRate,
+          overheadRate,
+          batchCapacity,
           status,
           disabled,
           remark);
@@ -82,8 +90,10 @@ public class WorkCenterDomainService {
    * @param id 工作中心Id
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
@@ -94,8 +104,10 @@ public class WorkCenterDomainService {
       long id,
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
@@ -104,8 +116,10 @@ public class WorkCenterDomainService {
         model,
         name,
         calendarId,
-        productionCapacity,
-        hourlyRate,
+        laborRate,
+        machineRate,
+        overheadRate,
+        batchCapacity,
         status,
         disabled,
         remark);
@@ -118,8 +132,10 @@ public class WorkCenterDomainService {
    * @param model 工作中心
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
@@ -128,16 +144,20 @@ public class WorkCenterDomainService {
       WorkCenter model,
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
     model.modify(
         name,
         calendarId,
-        productionCapacity,
-        hourlyRate,
+        laborRate,
+        machineRate,
+        overheadRate,
+        batchCapacity,
         status,
         disabled,
         remark);

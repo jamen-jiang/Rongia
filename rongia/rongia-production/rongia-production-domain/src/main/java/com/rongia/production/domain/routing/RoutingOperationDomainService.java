@@ -5,7 +5,6 @@ import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.workcenter.WorkCenter;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
 import com.rongia.shared.domain.exception.DomainException;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.NullMarked;
@@ -40,28 +39,54 @@ public class RoutingOperationDomainService {
   }
 
   /**
-   * 把入参补全成可装配的工序行数据
+   * 校验路线行：工作中心、三段工时都必须给，费率不在行上
    *
-   * <p>入参没给工作中心、周期时间、批量，就取工序字典上的默认值；费率没给就取工作中心的。
+   * <p>工序字典上不带这些数——同一道抛光走不同产品，工作中心和工时都不一样，字典给不出唯一答案。
    *
    * @param data 原始入参
    * @return 补全后的工序行数据
-   * @throws DomainException 工序不存在、工序没有默认工作中心、或工作中心不存在时抛出
+   * @throws DomainException 工序不存在、工作中心或任一段工时没填、或工作中心不存在时抛出
    */
   public RoutingOperationData resolve(RoutingOperationData data) {
     Operation operation = operationRepository.get(data.operationId());
     if (operation == null) {
       throw new DomainException("工序" + data.operationId() + "不存在!");
     }
-    long workCenterId =
-        data.workCenterId() != null ? data.workCenterId() : defaultWorkCenterId(operation);
+    if (data.workCenterId() == null) {
+      throw new DomainException("工序" + operation.getName() + "的工序行要指定工作中心");
+    }
+    if (data.setupTime() == null) {
+      throw new DomainException("工序" + operation.getName() + "的工序行要填准备时间");
+    }
+    if (data.laborTime() == null) {
+      throw new DomainException("工序" + operation.getName() + "的工序行要填人工时间");
+    }
+    if (data.machineTime() == null) {
+      throw new DomainException("工序" + operation.getName() + "的工序行要填机器时间");
+    }
+    long workCenterId = data.workCenterId();
+    requireWorkCenter(workCenterId);
     return new RoutingOperationData(
         data.operationId(),
         workCenterId,
-        data.cycleTime() != null ? data.cycleTime() : operation.getCycleTime(),
-        data.batchSize() != null ? data.batchSize() : operation.getBatchSize(),
-        data.hourlyRate() != null ? data.hourlyRate() : defaultHourlyRate(workCenterId),
+        data.setupTime(),
+        data.laborTime(),
+        data.machineTime(),
         data.sequence());
+  }
+
+  /**
+   * 校验工作中心存在
+   *
+   * <p>费率、工时都在别处，但行上写死的这个 Id 必须真有其物，否则下达时快照不出中心名。
+   *
+   * @param workCenterId 工作中心Id
+   * @throws DomainException 工作中心不存在时抛出
+   */
+  private void requireWorkCenter(long workCenterId) {
+    if (workCenterRepository.get(workCenterId) == null) {
+      throw new DomainException("工作中心" + workCenterId + "不存在!");
+    }
   }
 
   /**
@@ -97,53 +122,20 @@ public class RoutingOperationDomainService {
         current.modify(
             data.operationId(),
             data.workCenterId() != null ? data.workCenterId() : current.getWorkCenterId(),
-            data.cycleTime() != null ? data.cycleTime() : current.getCycleTime(),
-            data.batchSize() != null ? data.batchSize() : current.getBatchSize(),
-            data.hourlyRate() != null ? data.hourlyRate() : current.getHourlyRate(),
+            data.setupTime() != null ? data.setupTime() : current.getSetupTime(),
+            data.laborTime() != null ? data.laborTime() : current.getLaborTime(),
+            data.machineTime() != null ? data.machineTime() : current.getMachineTime(),
             data.sequence());
       } else {
         RoutingOperationData resolved = resolve(data);
         routing.addOperation(
             resolved.operationId(),
             resolved.workCenterId(),
-            resolved.cycleTime(),
-            resolved.batchSize(),
-            resolved.hourlyRate(),
+            resolved.setupTime(),
+            resolved.laborTime(),
+            resolved.machineTime(),
             resolved.sequence());
       }
     }
-  }
-
-  /**
-   * 工序字典上的默认工作中心，没配就报错
-   *
-   * <p>工序行的工作中心是必填的：字典和入参都没给，就说明这道工序不知道该在哪做，不能默认塞一个。
-   *
-   * @param operation 工序
-   * @return 默认工作中心Id
-   * @throws DomainException 工序没有默认工作中心时抛出
-   */
-  private long defaultWorkCenterId(Operation operation) {
-    Long workCenterId = operation.getWorkCenterId();
-    if (workCenterId == null) {
-      throw new DomainException(
-          "工序" + operation.getName() + "没有默认工作中心，请在工序行指定工作中心");
-    }
-    return workCenterId;
-  }
-
-  /**
-   * 取工作中心的小时费率，作为工序行的默认费率
-   *
-   * @param workCenterId 工作中心Id
-   * @return 小时费率
-   * @throws DomainException 工作中心不存在时抛出
-   */
-  private BigDecimal defaultHourlyRate(long workCenterId) {
-    WorkCenter workCenter = workCenterRepository.get(workCenterId);
-    if (workCenter == null) {
-      throw new DomainException("工作中心" + workCenterId + "不存在!");
-    }
-    return workCenter.getHourlyRate();
   }
 }

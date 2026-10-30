@@ -22,7 +22,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>排程与成本归集的单位，也是工序挂靠的对象：一条镀膜线、一个抛光班组各是一个工作中心，都按工作日历算可用工时。
  *
- * <p>中心只回答「这条线有多快、同时能开几张单、开一小时多少钱」——一天能干多少由排产按工作日历算，不在这里存。
+ * <p>中心只回答「这条线开一小时三类成本各是多少」——人工、机器、制造费用三个费率分开记，
+ * 自动化程度不同的线成本结构才拆得开；能干多少、能同时开几张单，由排产按工作日历和工序时长算，不在这里存。
  *
  * <p>换型调试、完工清场的开销不在这里：它取决于「上一个物料 → 这个物料」，不是这条线固有的数。
  */
@@ -48,13 +49,22 @@ public class WorkCenter extends UpdateAggregateRoot {
   @Column(name = "CalendarId", nullable = false)
   private Long calendarId;
 
-  /** 并行接单数：这个中心同时能开几张工单（照 ERPNext 的 production_capacity） */
-  @Column(name = "ProductionCapacity", nullable = false)
-  private Integer productionCapacity;
+  /** 人工费率（元/小时，照 carbon 的 laborRate）：干活的人开一小时多少钱 */
+  @Column(name = "LaborRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal laborRate;
 
-  /** 小时费率（照 Odoo 的 costs_hour）：这条线开一小时的成本 */
-  @Column(name = "HourlyRate", nullable = false, precision = 18, scale = 2)
-  private BigDecimal hourlyRate;
+  /** 机器费率（元/小时，照 carbon 的 machineRate）：这台机转一小时多少钱（折旧、电、维护） */
+  @Column(name = "MachineRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal machineRate;
+
+  /** 制造费用率（元/小时，照 carbon 的 overheadRate）：厂房、管理这些公共开销按小时摊进来的份额 */
+  @Column(name = "OverheadRate", nullable = false, precision = 18, scale = 2)
+  private BigDecimal overheadRate;
+
+  /** 一批最多多少件（可空，照 carbon 的 batchCapacity）：镀膜一炉 200 片；空表示这台机不分批 */
+  @Column(name = "BatchCapacity", precision = 18, scale = 2)
+  @Nullable
+  private BigDecimal batchCapacity;
 
   /** 状态编码，取值见 {@link WorkCenterStatusEnum}（照 ERPNext 的 Workstation.status，车间现场改，排产只读） */
   @Nationalized
@@ -76,8 +86,10 @@ public class WorkCenter extends UpdateAggregateRoot {
    *
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
@@ -85,16 +97,20 @@ public class WorkCenter extends UpdateAggregateRoot {
   WorkCenter(
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
     apply(
         name,
         calendarId,
-        productionCapacity,
-        hourlyRate,
+        laborRate,
+        machineRate,
+        overheadRate,
+        batchCapacity,
         status,
         disabled,
         remark);
@@ -105,8 +121,10 @@ public class WorkCenter extends UpdateAggregateRoot {
    *
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
@@ -114,16 +132,20 @@ public class WorkCenter extends UpdateAggregateRoot {
   void modify(
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
     apply(
         name,
         calendarId,
-        productionCapacity,
-        hourlyRate,
+        laborRate,
+        machineRate,
+        overheadRate,
+        batchCapacity,
         status,
         disabled,
         remark);
@@ -138,18 +160,22 @@ public class WorkCenter extends UpdateAggregateRoot {
    *
    * @param name 名称
    * @param calendarId 日历Id
-   * @param productionCapacity 并行接单数
-   * @param hourlyRate 小时费率
+   * @param laborRate 人工费率
+   * @param machineRate 机器费率
+   * @param overheadRate 制造费用率
+   * @param batchCapacity 一批最多多少件（可空）
    * @param status 状态编码
    * @param disabled 是否停用
    * @param remark 备注（可空）
-   * @throws DomainException 名称为空、状态为空或非法、日历为空、并行接单数非正、费率负数时抛出
+   * @throws DomainException 名称为空、状态为空或非法、日历为空、任一费率或批量件数为负数时抛出
    */
   private void apply(
       String name,
       long calendarId,
-      int productionCapacity,
-      BigDecimal hourlyRate,
+      BigDecimal laborRate,
+      BigDecimal machineRate,
+      BigDecimal overheadRate,
+      @Nullable BigDecimal batchCapacity,
       String status,
       boolean disabled,
       @Nullable String remark) {
@@ -165,17 +191,25 @@ public class WorkCenter extends UpdateAggregateRoot {
     if (calendarId <= 0) {
       throw new DomainException("工作日历不能为空");
     }
-    if (productionCapacity <= 0) {
-      throw new DomainException("并行接单数必须大于0");
+    if (laborRate.signum() < 0) {
+      throw new DomainException("人工费率不能为负数");
     }
-    if (hourlyRate.signum() < 0) {
-      throw new DomainException("小时费率不能为负数");
+    if (machineRate.signum() < 0) {
+      throw new DomainException("机器费率不能为负数");
+    }
+    if (overheadRate.signum() < 0) {
+      throw new DomainException("制造费用率不能为负数");
+    }
+    if (batchCapacity != null && batchCapacity.signum() < 0) {
+      throw new DomainException("一批最多件数不能为负数");
     }
 
     this.name = trimmedName;
     this.calendarId = calendarId;
-    this.productionCapacity = productionCapacity;
-    this.hourlyRate = hourlyRate;
+    this.laborRate = laborRate;
+    this.machineRate = machineRate;
+    this.overheadRate = overheadRate;
+    this.batchCapacity = batchCapacity;
     this.status = validStatus;
     this.disabled = disabled;
     this.remark = remark;

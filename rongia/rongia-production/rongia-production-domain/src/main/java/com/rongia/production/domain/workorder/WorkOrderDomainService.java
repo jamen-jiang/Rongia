@@ -86,10 +86,11 @@ public class WorkOrderDomainService {
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
+   * @param bomId 展开所用的BOM（必填）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param startTime 计划开工时间（可空，排产时填）
+   * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param locationId 收货库位Id
@@ -101,6 +102,7 @@ public class WorkOrderDomainService {
       @Nullable Long sourceId,
       @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
+      long bomId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
@@ -115,6 +117,7 @@ public class WorkOrderDomainService {
         sourceId,
         sourceLineId,
         sourceNumber,
+        bomId,
         materialId,
         variantId,
         deliveryTime,
@@ -134,10 +137,11 @@ public class WorkOrderDomainService {
    * @param sourceId 来源单据Id（可空，库存补货时为空）
    * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空，冗余存储便于追溯与展示）
+   * @param bomId 展开所用的BOM（必填）
    * @param materialId 产出SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间，生产侧只读不写）
-   * @param startTime 计划开工时间（可空，排产时填）
+   * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param locationId 收货库位Id
@@ -151,6 +155,7 @@ public class WorkOrderDomainService {
       @Nullable Long sourceId,
       @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
+      long bomId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
@@ -165,6 +170,7 @@ public class WorkOrderDomainService {
         sourceId,
         sourceLineId,
         sourceNumber,
+        bomId,
         materialId,
         variantId,
         deliveryTime,
@@ -242,7 +248,7 @@ public class WorkOrderDomainService {
           requirement.requiredQty(),
           requirement.unitId());
     }
-    model.release(moment);
+    model.release();
     scheduleOperations(model);
     return model;
   }
@@ -257,7 +263,7 @@ public class WorkOrderDomainService {
    * @param model 已下达的工单
    */
   private void scheduleOperations(WorkOrder model) {
-    LocalDateTime cursor = model.getPlannedStartTime();
+    LocalDateTime cursor = model.getStartTime();
     if (cursor != null) {
       for (WorkOrderOperation operation : model.getWorkOrderOperations()) {
         LocalDateTime end =
@@ -266,9 +272,8 @@ public class WorkOrderDomainService {
         operation.schedule(cursor, end);
         cursor = end;
       }
-      model.fillProjectedEndTime(cursor);
+      model.fillEndTime(cursor);
     }
-    model.fillOperationDeliveryTimes();
   }
 
   /**

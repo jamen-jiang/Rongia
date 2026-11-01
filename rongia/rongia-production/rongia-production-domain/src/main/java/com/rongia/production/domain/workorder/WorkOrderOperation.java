@@ -88,24 +88,21 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   @Column(name = "OverheadRate", nullable = false, precision = 18, scale = 2)
   private BigDecimal overheadRate;
 
-  /** 本工序应完成时间（从工单交期沿工序链反推，照 carbon 的 dueDate；工单没有交期时为空） */
-  @Column(name = "DeliveryTime")
-  @Nullable
-  private LocalDateTime deliveryTime;
+  /** 开工时间（开工前是排产铺的计划，开工后被实际覆盖，照 Odoo 的 date_start 一列两用） */
+  @Column(name = "StartTime", nullable = false)
+  private LocalDateTime startTime;
 
-  /** 计划开工时间（排产铺定，照 carbon 的 startDate） */
-  @Column(name = "PlannedStartTime")
-  @Nullable
-  private LocalDateTime plannedStartTime;
+  /** 完工时间（开工前是排产铺的计划，完工后被实际覆盖，照 Odoo 的 date_finished 一列两用） */
+  @Column(name = "EndTime", nullable = false)
+  private LocalDateTime endTime;
 
-  /** 预计完工时间（排产按工时算出来的结论，照 carbon 的 projectedEndTime） */
-  @Column(name = "ProjectedEndTime")
-  @Nullable
-  private LocalDateTime projectedEndTime;
+  /** 已完成数量（只读；报工侧按报工单流水汇总回写，照 ERPNext 的 completed_qty 口径） */
+  @Column(name = "CompletedQty", nullable = false, precision = 18, scale = 2)
+  private BigDecimal completedQty = BigDecimal.ZERO;
 
-  /** 已完成数量数量（只读；报工侧按报工单流水汇总回写，照 ERPNext 的 completed_qty 口径） */
-  @Column(name = "ProducedQty", nullable = false, precision = 18, scale = 2)
-  private BigDecimal producedQty = BigDecimal.ZERO;
+  /** 报废数量（只读；报工侧按报工单流水汇总回写，照 carbon 的 quantityScrapped 口径） */
+  @Column(name = "LossQty", nullable = false, precision = 18, scale = 2)
+  private BigDecimal lossQty = BigDecimal.ZERO;
 
   /** 工序顺序 */
   @Column(name = "Sequence", nullable = false)
@@ -174,37 +171,26 @@ public class WorkOrderOperation extends BaseDeleteEntity {
   }
 
   /**
-   * 排产：铺计划开工与预计完工
+   * 排产：铺开工与完工
    *
    * <p>两个都是算出来的：开工是从工单开工顺着工序链推的，完工是再加工时。实际干到哪儿不在这里——
    * 那由报工流水和状态体现。
    *
-   * @param plannedStartTime 计划开工时间
-   * @param projectedEndTime 预计完工时间
+   * @param startTime 开工时间
+   * @param endTime 完工时间
    * @throws DomainException 时间倒挂或工序已开工时抛出
    */
-  void schedule(LocalDateTime plannedStartTime, LocalDateTime projectedEndTime) {
+  void schedule(LocalDateTime startTime, LocalDateTime endTime) {
     if (isInProgress() || isCompleted()) {
       throw new DomainException("工序" + this.operationName + "已开工，不能再排产");
     }
-    if (projectedEndTime.isBefore(plannedStartTime)) {
-      throw new DomainException("工序" + this.operationName + "预计完工早于计划开工");
+    if (endTime.isBefore(startTime)) {
+      throw new DomainException("工序" + this.operationName + "完工时间早于开工时间");
     }
-    this.plannedStartTime = plannedStartTime;
-    this.projectedEndTime = projectedEndTime;
+    this.startTime = startTime;
+    this.endTime = endTime;
   }
 
-  /**
-   * 回填本工序的应完成时间
-   *
-   * <p>不是排产铺的，是从工单交期倒推出来的：要让整张单按时交，这道工序最晚什么时候得做完。
-   * 工单没有交期时传空。
-   *
-   * @param deliveryTime 本工序应完成时间（可空）
-   */
-  void fillDeliveryTime(@Nullable LocalDateTime deliveryTime) {
-    this.deliveryTime = deliveryTime;
-  }
 
   /**
    * 报工校验：本次数量必须非负
@@ -212,11 +198,11 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * <p>不要求先开工：工序状态由累计良品对可投入量算出来，报第一笔就是开工。合计不在这里累加——良品、报废、
    * 工时的权威数在报工单流水里，由报工侧按流水汇总回写 {@code applyOperationTotals}。
    *
-   * @param producedQty 本次完成数量
+   * @param completedQty 本次完成数量
    * @throws DomainException 数量为负时抛出
    */
-  public void report(BigDecimal producedQty) {
-    if (producedQty.signum() < 0) {
+  public void report(BigDecimal completedQty) {
+    if (completedQty.signum() < 0) {
       throw new DomainException("报工数量不能为负数");
     }
   }
@@ -227,18 +213,21 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * <p>没有「点完工」：累计良品为 0 是未开始，小于可投入量是加工中，够了就是已完工。报废不进这个判据——
    * 报废件不产出下道能吃的东西，它只算工时。撤回把状态退回去。
    *
-   * @param producedQty 流水已完成数量
+   * @param completedQty 流水已完成数量
+   * @param lossQty 流水累计报废数量
    * @param availableQty 本工序可投入数量
    */
   void applyOperationTotals(
-      BigDecimal producedQty,
+      BigDecimal completedQty,
+      BigDecimal lossQty,
       BigDecimal availableQty) {
-    this.producedQty = producedQty;
-    if (producedQty.signum() == 0) {
+    this.completedQty = completedQty;
+    this.lossQty = lossQty;
+    if (completedQty.signum() == 0) {
       this.status = WorkOrderOperationStatusEnum.PENDING.getCode();
       return;
     }
-    if (producedQty.compareTo(availableQty) >= 0) {
+    if (completedQty.compareTo(availableQty) >= 0) {
       this.status = WorkOrderOperationStatusEnum.COMPLETED.getCode();
       return;
     }
@@ -253,7 +242,7 @@ public class WorkOrderOperation extends BaseDeleteEntity {
    * @return true 表示累计报工数不为零
    */
   boolean hasReported() {
-    return this.producedQty.signum() != 0;
+    return this.completedQty.signum() != 0;
   }
 
   /**
@@ -327,7 +316,6 @@ public class WorkOrderOperation extends BaseDeleteEntity {
     validateNonNegative("人工费率", laborRate);
     validateNonNegative("机器费率", machineRate);
     validateNonNegative("制造费用率", overheadRate);
-
     this.operationId = operationId;
     this.operationName = trimmedName;
     this.workCenterId = workCenterId;

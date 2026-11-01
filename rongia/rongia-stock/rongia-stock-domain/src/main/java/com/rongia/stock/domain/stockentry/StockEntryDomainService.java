@@ -128,6 +128,7 @@ public class StockEntryDomainService {
           data.qty(),
           data.outboundLocationId(),
           data.inboundLocationId(),
+          data.sourceLineId(),
           null,
           data.remark());
     }
@@ -225,6 +226,7 @@ public class StockEntryDomainService {
           data.qty().negate(),
           data.outboundLocationId(),
           data.inboundLocationId(),
+          originLine.getSourceLineId(),
           originLine.getId(),
           data.remark());
     }

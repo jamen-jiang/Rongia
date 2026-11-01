@@ -80,6 +80,10 @@ public class WorkOrder extends OrderAggregateRoot {
   @Nullable
   private String sourceNumber;
 
+  /** 展开所用的BOM（必填；下达后照单上的行干，配方改版不影响在制） */
+  @Column(name = "BomId", nullable = false)
+  private Long bomId;
+
   /** 产出SKU的SPU（同一系列多个度数的工单按它折叠） */
   @Column(name = "MaterialId", nullable = false)
   private Long materialId;
@@ -93,25 +97,13 @@ public class WorkOrder extends OrderAggregateRoot {
   @Nullable
   private LocalDateTime deliveryTime;
 
-  /** 计划开工时间（排产铺定，照 carbon 的 startDate） */
-  @Column(name = "PlannedStartTime")
-  @Nullable
-  private LocalDateTime plannedStartTime;
+  /** 开工时间（开工前是排产铺的计划，开工后被实际覆盖，照 Odoo 的 date_start 一列两用） */
+  @Column(name = "StartTime", nullable = false)
+  private LocalDateTime startTime;
 
-  /** 预计完工时间（排产按工序链铺出来的结论，照 carbon 的 projectedCompletionAt） */
-  @Column(name = "ProjectedEndTime")
-  @Nullable
-  private LocalDateTime projectedEndTime;
-
-  /** 下达时刻（下达动作发生的时间，照 carbon 的 releasedDate） */
-  @Column(name = "ReleasedTime")
-  @Nullable
-  private LocalDateTime releasedTime;
-
-  /** 完工时刻（自动或手工结单的时间，照 carbon 的 completedDate） */
-  @Column(name = "CompletedTime")
-  @Nullable
-  private LocalDateTime completedTime;
+  /** 完工时间（开工前是排产铺的计划，完工后被实际覆盖，照 Odoo 的 date_finished 一列两用） */
+  @Column(name = "EndTime", nullable = false)
+  private LocalDateTime endTime;
 
   /** 计划数量 */
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
@@ -161,10 +153,11 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param sourceId 来源单据Id（可空）
    * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空）
+   * @param bomId 展开所用的BOM（必填）
    * @param materialId 产出SKU的SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间）
-   * @param plannedStartTime 计划开工时间（可空，排产时填）
+   * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param locationId 收货库位Id
@@ -176,10 +169,11 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable Long sourceId,
       @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
+      long bomId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
-      @Nullable LocalDateTime plannedStartTime,
+      @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
       long locationId,
@@ -191,10 +185,11 @@ public class WorkOrder extends OrderAggregateRoot {
         sourceId,
         sourceLineId,
         sourceNumber,
+        bomId,
         materialId,
         variantId,
         deliveryTime,
-        plannedStartTime,
+        startTime,
         qty,
         unitId,
         locationId,
@@ -243,37 +238,19 @@ public class WorkOrder extends OrderAggregateRoot {
       throw new DomainException("工单已结束，不能再调整交期");
     }
     this.deliveryTime = deliveryTime;
-    fillOperationDeliveryTimes();
   }
 
   /**
-   * 回填预计完工时间（下达排产时由领域服务按工序链铺定）
+   * 回填完工时间（下达排产时由领域服务按工序链铺定）
    *
    * <p>只写预计列，不碰完工时刻——预计是按标准工时算出来的结论，实际结单另落一列，两者互不覆盖。
    *
-   * @param projectedEndTime 预计完工时间
+   * @param endTime 完工时间
    */
-  void fillProjectedEndTime(LocalDateTime projectedEndTime) {
-    this.projectedEndTime = projectedEndTime;
+  void fillEndTime(LocalDateTime endTime) {
+    this.endTime = endTime;
   }
 
-  /**
-   * 按工单交期倒推每道工序的应完成时间
-   *
-   * <p>从末道往前减：末道的应完成时间就是工单交期，往前每道再减掉自己这道要花的工时。工单没有交期时，
-   * 每道工序的应完成时间一并清空——没有承诺就没有「最晚什么时候做完」。
-   */
-  void fillOperationDeliveryTimes() {
-    List<WorkOrderOperation> operations = orderedOperations();
-    LocalDateTime due = this.deliveryTime;
-    for (int index = operations.size() - 1; index >= 0; index--) {
-      WorkOrderOperation operation = operations.get(index);
-      operation.fillDeliveryTime(due);
-      if (due != null) {
-        due = due.minusMinutes(operation.estimatedMinutes(this.qty).longValue());
-      }
-    }
-  }
 
   /**
    * 修改工单（仅草稿状态可改）
@@ -282,10 +259,11 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param sourceId 来源单据Id（可空）
    * @param sourceLineId 来源单据行Id（可空：库存补货没有行）
    * @param sourceNumber 来源单号（可空）
+   * @param bomId 展开所用的BOM（必填）
    * @param materialId 产出SKU的SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间）
-   * @param plannedStartTime 计划开工时间（可空，排产时填）
+   * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param locationId 收货库位Id
@@ -297,10 +275,11 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable Long sourceId,
       @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
+      long bomId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
-      @Nullable LocalDateTime plannedStartTime,
+      @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
       long locationId,
@@ -313,10 +292,11 @@ public class WorkOrder extends OrderAggregateRoot {
         sourceId,
         sourceLineId,
         sourceNumber,
+        bomId,
         materialId,
         variantId,
         deliveryTime,
-        plannedStartTime,
+        startTime,
         qty,
         unitId,
         locationId,
@@ -326,7 +306,7 @@ public class WorkOrder extends OrderAggregateRoot {
   /**
    * 添加工序快照（仅草稿状态可加）
    *
-   * <p>工序不保存计划投入数量：可投入多少取决于前置工序实际产出，报工时由本聚合现算，见 {@link #availableQtyFor}。
+   * <p>实际能投入多少由前置工序产出决定，报工时现算，见 {@link #availableQtyFor}。
    *
    * @param operationId 工序Id
    * @param operationName 工序名称（快照）
@@ -397,7 +377,12 @@ public class WorkOrder extends OrderAggregateRoot {
     }
     workOrderLines.add(
         new WorkOrderLine(
-            bomLineId, materialId, variantId, routingOperationId, requiredQty, unitId));
+            bomLineId,
+            materialId,
+            variantId,
+            routingOperationId,
+            requiredQty,
+            unitId));
   }
 
   /**
@@ -406,18 +391,15 @@ public class WorkOrder extends OrderAggregateRoot {
    * <p>下达是幂等的边界：一旦下达，工序与用料就固化在本单内，工艺路线或 BOM 后续改版不影响本单。
    * 配方是整份抄进来的，单上不留「用了哪份 BOM/路线」的指针——要看配方长什么样，看单上的行。
    *
-   * @param moment 下达时刻
    * @throws DomainException 非草稿状态、或没有任何工序时抛出
    */
-  public void release(LocalDateTime moment) {
+  public void release() {
     if (!isDraft()) {
       throw new DomainException("只有草稿状态的工单才能下达");
     }
     if (workOrderOperations.isEmpty()) {
       throw new DomainException("工单没有工序，不能下达");
     }
-
-    this.releasedTime = moment;
     this.status = WorkOrderStatusEnum.RELEASED.getCode();
   }
 
@@ -439,19 +421,16 @@ public class WorkOrder extends OrderAggregateRoot {
    * <p>正常路径是工序一道道收尾后自动转完工，这里保留手工入口用于「产出已达成计划数量、但还有
    * 工序挂在加工中」的车间收尾场景。不满足数量口径时不允许手工结单：产出加报废没凑够计划数，说明还有料 没交代去处，结单会把这笔账留在库存与成本上。
    *
-   * @param moment 完工时刻
    * @throws DomainException 非生产中的工单、或产出加报废未达计划数量时抛出
    */
-  public void complete(LocalDateTime moment) {
+  public void complete() {
     if (!isInProgress()) {
       throw new DomainException("只有生产中的工单才能完工");
     }
     if (!isQtySettled()) {
       throw new DomainException("完工数量未达计划数量，不能完工");
     }
-    this.status = WorkOrderStatusEnum.COMPLETED.getCode();
-    this.completedTime = moment;
-  }
+    this.status = WorkOrderStatusEnum.COMPLETED.getCode();  }
 
   /**
    * 关闭
@@ -480,17 +459,17 @@ public class WorkOrder extends OrderAggregateRoot {
   /**
    * 工序报工（行级校验）
    *
-   * <p>报工明细由 {@code WorkOrderTracking} 承载，权威数在流水里；行上的合计由报工侧按流水回写。
+   * <p>报工明细由 {@code WorkOrderQuantity} 承载，权威数在流水里；行上的合计由报工侧按流水回写。
    * 报工不要求先开工：工序状态按累计良品算，报第一笔就是加工中。数量闸在报工领域服务里按流水算
    * （本聚合不读报工仓储）。
    *
    * @param workOrderOperationId 工单工序Id
-   * @param producedQty 本次完成数量
+   * @param completedQty 本次完成数量
    * @throws DomainException 工单已结束、或报工数据非法时抛出
    */
-  public void reportOperation(long workOrderOperationId, BigDecimal producedQty) {
+  public void reportOperation(long workOrderOperationId, BigDecimal completedQty) {
     ensureExecutable();
-    requireOperation(workOrderOperationId).report(producedQty);
+    requireOperation(workOrderOperationId).report(completedQty);
   }
 
   /**
@@ -523,18 +502,20 @@ public class WorkOrder extends OrderAggregateRoot {
    * 工序全部报满则工单转完工——都是量的结论，不需要人再点开工、完工。
    *
    * @param workOrderOperationId 工单工序Id
-   * @param producedQty 流水已完成数量
-   * @param moment 报工时刻
+   * @param completedQty 流水已完成数量
+   * @param lossQty 流水累计报废数量
    * @throws DomainException 工序不存在时抛出
    */
   public void applyOperationTotals(
-      long workOrderOperationId, BigDecimal producedQty, LocalDateTime moment) {
+      long workOrderOperationId,
+      BigDecimal completedQty,
+      BigDecimal lossQty) {
     WorkOrderOperation operation = requireOperation(workOrderOperationId);
-    operation.applyOperationTotals(producedQty, availableQtyFor(operation));
+    operation.applyOperationTotals(completedQty, lossQty, availableQtyFor(operation));
     if (isReleased()) {
       start();
     }
-    refreshCompletionStatus(moment);
+    refreshCompletionStatus();
   }
 
   /**
@@ -617,11 +598,11 @@ public class WorkOrder extends OrderAggregateRoot {
    *
    * <p>不落库：做出来多少本来就是末道已完工工序的完成数，工序行上就有，工单再存一份就得维护两处一致。 末道被撤回、一道都没完工时归零。
    *
-   * @return 末道已完工工序的已完成数量数
+   * @return 末道已完工工序的已完成数量
    */
-  public BigDecimal getProducedQty() {
+  public BigDecimal getCompletedQty() {
     WorkOrderOperation last = lastCompletedOperation();
-    return last == null ? BigDecimal.ZERO : last.getProducedQty();
+    return last == null ? BigDecimal.ZERO : last.getCompletedQty();
   }
 
   /**
@@ -732,7 +713,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param materialId 产出SKU的SPU
    * @param variantId 产出SKU
    * @param deliveryTime 交期（可空，承诺的完工时间）
-   * @param plannedStartTime 计划开工时间（可空，排产时填）
+   * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
    * @param locationId 收货库位Id
@@ -744,10 +725,11 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable Long sourceId,
       @Nullable Long sourceLineId,
       @Nullable String sourceNumber,
+      long bomId,
       long materialId,
       long variantId,
       @Nullable LocalDateTime deliveryTime,
-      @Nullable LocalDateTime plannedStartTime,
+      @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
       long locationId,
@@ -757,6 +739,9 @@ public class WorkOrder extends OrderAggregateRoot {
     }
     if (variantId <= 0) {
       throw new DomainException("产出SKU不能为空");
+    }
+    if (bomId <= 0) {
+      throw new DomainException("BOM不能为空");
     }
     if (qty.signum() <= 0) {
       throw new DomainException("计划数量必须大于0");
@@ -768,7 +753,7 @@ public class WorkOrder extends OrderAggregateRoot {
     if (trimmedSourceType == null) {
       throw new DomainException("来源类型不能为空");
     }
-    if (plannedStartTime != null && deliveryTime != null && plannedStartTime.isAfter(deliveryTime)) {
+    if (startTime != null && deliveryTime != null && startTime.isAfter(deliveryTime)) {
       throw new DomainException("开工时间晚于交期，这张单排不进去");
     }
     this.sourceType = EnumUtils.getCode(WorkOrderSourceTypeEnum.class, trimmedSourceType, "来源类型");
@@ -780,8 +765,10 @@ public class WorkOrder extends OrderAggregateRoot {
     this.sourceId = sourceId;
     this.sourceLineId = sourceLineId;
     this.sourceNumber = sourceNumber;
+    this.bomId = bomId;
     this.deliveryTime = deliveryTime;
-    this.plannedStartTime = plannedStartTime;
+    // 不传就默认现在：开工时间必填（照 Odoo 的 date_start default now），排产时再精修
+    this.startTime = startTime != null ? startTime : LocalDateTime.now();
     if (locationId <= 0) {
       throw new DomainException("收货库位不能为空");
     }
@@ -886,25 +873,21 @@ public class WorkOrder extends OrderAggregateRoot {
   /**
    * 按工序收尾情况刷新工单状态
    *
-   * <p>两个方向都在这里：所有工序都报满了就把工单推到已完工并落完工时刻；某道工序被撤回、不再全部报满，
-   * 已完工的工单退回生产中，完工时刻一并清空。只在生产中的工单上动——已关闭、已取消的工单不该被报工带回来。
-   *
-   * @param moment 报工时刻
+   * <p>两个方向都在这里：所有工序都报满了就把工单推到已完工；某道工序被撤回、不再全部报满，
+   * 已完工的工单退回生产中。只在生产中的工单上动——已关闭、已取消的工单不该被报工带回来。
    */
-  private void refreshCompletionStatus(LocalDateTime moment) {
+  private void refreshCompletionStatus() {
     if (!isInProgress() && !isCompleted()) {
       return;
     }
     if (allOperationsFinished()) {
       if (!isCompleted()) {
         this.status = WorkOrderStatusEnum.COMPLETED.getCode();
-        this.completedTime = moment;
       }
       return;
     }
     if (isCompleted()) {
       this.status = WorkOrderStatusEnum.IN_PROGRESS.getCode();
-      this.completedTime = null;
     }
   }
 
@@ -927,7 +910,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @return true 表示已达成
    */
   private boolean isQtySettled() {
-    return getProducedQty().compareTo(this.qty) >= 0;
+    return getCompletedQty().compareTo(this.qty) >= 0;
   }
 
   /**
@@ -940,7 +923,7 @@ public class WorkOrder extends OrderAggregateRoot {
    */
   private BigDecimal availableQtyFor(WorkOrderOperation operation) {
     WorkOrderOperation predecessor = lastEffectivePredecessor(operation);
-    return predecessor == null ? this.qty : predecessor.getProducedQty();
+    return predecessor == null ? this.qty : predecessor.getCompletedQty();
   }
 
   /**

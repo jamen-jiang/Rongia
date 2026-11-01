@@ -21,8 +21,8 @@ import org.jspecify.annotations.Nullable;
  * 之后 BOM 改版不影响本单。投放工序也从 BOM 行照抄（可空）；物料类型不在这里抄：它记在 {@code Variant}
  * 主数据上，要按类别看料就按 SPU 分组。
  *
- * <p>四个数量记录料的完整流转：要多少（required）、领多少（issued）、退多少（returned）、
- * 用多少（consumed）。差异即超领、退料或盘亏。
+ * <p>四个数量记录料的完整流转：要多少（required）、领多少（issued）、
+ * 退多少（returned）、用多少（consumed）。差异即超领、退料或盘亏。
  */
 @NullMarked
 @Getter
@@ -128,11 +128,11 @@ public class WorkOrderLine extends BaseDeleteEntity {
   /**
    * 领料：累加已领数量
    *
-   * <p>上限按净领料算（已领减已退再加本次不超过需求）：退回去的料等于把额度让出来，返工补领时不该被自己
-   * 先前退的那一笔挡住。超领要放行就得回去把需求量调大，而不是在这里放宽校验。
+   * <p>上限按净领料算（已领减已退再加本次不超过「净需求 + 报废余量」）：报废余量本来就是要多备出来的量，
+   * 领料时可以一并领走；退回去的料等于把额度让出来，返工补领时不该被自己先前退的那一笔挡住。
    *
    * @param qty 本次领用数量
-   * @throws DomainException 数量非正、或净领料累计超过需求数量时抛出
+   * @throws DomainException 数量非正、或净领料累计超过总需求量时抛出
    */
   public void issue(BigDecimal qty) {
     if (qty.signum() <= 0) {
@@ -195,7 +195,7 @@ public class WorkOrderLine extends BaseDeleteEntity {
    * 减完要照净领料上限重查一遍：退料把额度让出去之后往往又补领过，这一减就把超领放回来了。
    *
    * @param qty 本次撤回数量
-   * @throws DomainException 数量非正、撤回超过已退数量、或撤回后净领料超过需求量时抛出
+   * @throws DomainException 数量非正、撤回超过已退数量、或撤回后净领料超过总需求量时抛出
    */
   public void unreturn(BigDecimal qty) {
     if (qty.signum() <= 0) {

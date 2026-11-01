@@ -49,7 +49,6 @@ import org.jspecify.annotations.Nullable;
     name = "SalesOrder",
     indexes = {
       @Index(name = "IX_SalesOrder_CustomerId", columnList = "CustomerId"),
-      @Index(name = "IX_SalesOrder_OrderTime", columnList = "OrderTime"),
       @Index(name = "IX_SalesOrder_Status", columnList = "Status")
     })
 public class SalesOrder extends OrderAggregateRoot {
@@ -63,10 +62,6 @@ public class SalesOrder extends OrderAggregateRoot {
   @Column(name = "CustomerOrderNumber", length = 100)
   @Nullable
   private String customerOrderNumber;
-
-  /** 下单时间 */
-  @Column(name = "OrderTime", nullable = false)
-  private LocalDateTime orderTime;
 
   /** 交期（可空）：答应客户哪天交货，往下就是工单的交期 */
   @Column(name = "DeliveryTime")
@@ -98,7 +93,6 @@ public class SalesOrder extends OrderAggregateRoot {
    *
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
@@ -106,12 +100,11 @@ public class SalesOrder extends OrderAggregateRoot {
   SalesOrder(
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       String number) {
     super(number);
-    apply(customerId, customerOrderNumber, orderTime, deliveryTime, remark);
+    apply(customerId, customerOrderNumber, deliveryTime, remark);
     this.status = SalesOrderStatusEnum.DRAFT.getCode();
   }
 
@@ -139,7 +132,6 @@ public class SalesOrder extends OrderAggregateRoot {
    *
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态时抛出
@@ -147,11 +139,10 @@ public class SalesOrder extends OrderAggregateRoot {
   public void modify(
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     ensureDraft();
-    apply(customerId, customerOrderNumber, orderTime, deliveryTime, remark);
+    apply(customerId, customerOrderNumber, deliveryTime, remark);
   }
 
   /**
@@ -387,26 +378,20 @@ public class SalesOrder extends OrderAggregateRoot {
    *
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
-   * @throws DomainException 客户非法，或交期早于下单时间时抛出
+   * @throws DomainException 客户非法时抛出
    */
   private void apply(
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     if (customerId <= 0) {
       throw new DomainException("客户不能为空");
     }
-    if (deliveryTime != null && deliveryTime.isBefore(orderTime)) {
-      throw new DomainException("交期不能早于下单时间");
-    }
     this.customerId = customerId;
     this.customerOrderNumber = StringUtils.trimToNull(customerOrderNumber);
-    this.orderTime = orderTime;
     this.deliveryTime = deliveryTime;
     this.remark = remark;
   }

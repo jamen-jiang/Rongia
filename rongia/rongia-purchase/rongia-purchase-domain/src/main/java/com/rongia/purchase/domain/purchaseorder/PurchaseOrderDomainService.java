@@ -41,7 +41,6 @@ public class PurchaseOrderDomainService {
    *
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param lines 采购单行数据
@@ -50,14 +49,13 @@ public class PurchaseOrderDomainService {
   public PurchaseOrder create(
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       List<PurchaseOrderLineData> lines) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     PurchaseOrder model =
         purchaseOrderFactory.create(
-            supplierId, supplierOrderNumber, orderTime, deliveryTime, remark, "");
+            supplierId, supplierOrderNumber, deliveryTime, remark, "");
     for (PurchaseOrderLineData data : lines) {
       model.addLine(
           data.materialId(),
@@ -79,7 +77,6 @@ public class PurchaseOrderDomainService {
    * @param id 采购单Id
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @return 采购单聚合
@@ -89,12 +86,11 @@ public class PurchaseOrderDomainService {
       long id,
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     PurchaseOrder model = getExist(id);
     model.modify(
-        supplierId, supplierOrderNumber, orderTime, deliveryTime, remark);
+        supplierId, supplierOrderNumber, deliveryTime, remark);
     return model;
   }
 

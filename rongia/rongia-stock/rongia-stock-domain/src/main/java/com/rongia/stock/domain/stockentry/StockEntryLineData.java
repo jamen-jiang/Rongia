@@ -16,6 +16,7 @@ import org.jspecify.annotations.Nullable;
  * @param qty 数量（正数）
  * @param outboundLocationId 出库库位Id（可空）
  * @param inboundLocationId 入库库位Id（可空）
+ * @param sourceLineId 来源单据行Id（可空，指回工单用料行/销售单行/采购单行）
  * @param remark 备注（可空）
  */
 @NullMarked
@@ -25,4 +26,5 @@ public record StockEntryLineData(
     BigDecimal qty,
     @Nullable Long outboundLocationId,
     @Nullable Long inboundLocationId,
+    @Nullable Long sourceLineId,
     @Nullable String remark) {}

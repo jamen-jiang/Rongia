@@ -26,7 +26,6 @@ public class SalesOrderFactory {
    *
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param number 销售订单号（传空串表示由 OrderAddedEvent 的监听器分配）
@@ -36,7 +35,6 @@ public class SalesOrderFactory {
   public SalesOrder create(
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       String number) {
@@ -45,6 +43,6 @@ public class SalesOrderFactory {
       throw new DomainException("销售订单号" + number + "已存在!");
     }
     return new SalesOrder(
-        customerId, customerOrderNumber, orderTime, deliveryTime, remark, number);
+        customerId, customerOrderNumber, deliveryTime, remark, number);
   }
 }

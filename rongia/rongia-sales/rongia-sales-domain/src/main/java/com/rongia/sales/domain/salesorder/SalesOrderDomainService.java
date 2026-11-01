@@ -40,7 +40,6 @@ public class SalesOrderDomainService {
    *
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param lines 订单行数据
@@ -49,14 +48,13 @@ public class SalesOrderDomainService {
   public SalesOrder create(
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       List<SalesOrderLineData> lines) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     SalesOrder model =
         salesOrderFactory.create(
-            customerId, customerOrderNumber, orderTime, deliveryTime, remark, "");
+            customerId, customerOrderNumber, deliveryTime, remark, "");
     for (SalesOrderLineData data : lines) {
       model.addLine(
           data.sequence(),
@@ -80,7 +78,6 @@ public class SalesOrderDomainService {
    * @param id 销售订单Id
    * @param customerId 客户Id
    * @param customerOrderNumber 客户单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @return 销售订单聚合
@@ -90,11 +87,10 @@ public class SalesOrderDomainService {
       long id,
       long customerId,
       @Nullable String customerOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     SalesOrder model = getExist(id);
-    model.modify(customerId, customerOrderNumber, orderTime, deliveryTime, remark);
+    model.modify(customerId, customerOrderNumber, deliveryTime, remark);
     return model;
   }
 

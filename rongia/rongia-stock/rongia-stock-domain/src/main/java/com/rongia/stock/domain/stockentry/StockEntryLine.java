@@ -69,6 +69,11 @@ public class StockEntryLine extends BaseDeleteEntity {
   @Nullable
   private Long inboundLocationId;
 
+  /** 来源单据行Id（可空，指回业务单上的那一行：工单用料行、销售单行、采购单行） */
+  @Column(name = "SourceLineId")
+  @Nullable
+  private Long sourceLineId;
+
   /** 被冲的原行Id（可空，非空即本行是红字行、指回原单上被冲的那一行） */
   @Column(name = "ReversalOfStockEntryLineId")
   @Nullable
@@ -88,6 +93,7 @@ public class StockEntryLine extends BaseDeleteEntity {
    * @param qty 数量（红字行为负）
    * @param outboundLocationId 出库库位Id（可空）
    * @param inboundLocationId 入库库位Id（可空）
+   * @param sourceLineId 来源单据行Id（可空）
    * @param reversalOfStockEntryLineId 被冲的原行Id（可空，普通行为 null）
    * @param remark 备注（可空）
    * @throws DomainException SPU、SKU非法，数量为零，出库库位与入库库位全空或相同，或原行Id有误时抛出
@@ -98,6 +104,7 @@ public class StockEntryLine extends BaseDeleteEntity {
       BigDecimal qty,
       @Nullable Long outboundLocationId,
       @Nullable Long inboundLocationId,
+      @Nullable Long sourceLineId,
       @Nullable Long reversalOfStockEntryLineId,
       @Nullable String remark) {
     if (materialId <= 0) {
@@ -124,11 +131,15 @@ public class StockEntryLine extends BaseDeleteEntity {
     if (reversalOfStockEntryLineId != null && reversalOfStockEntryLineId <= 0) {
       throw new DomainException("红字行要指回被冲的原行!");
     }
+    if (sourceLineId != null && sourceLineId <= 0) {
+      throw new DomainException("来源行Id有误!");
+    }
     this.materialId = materialId;
     this.variantId = variantId;
     this.qty = qty;
     this.outboundLocationId = outboundLocationId;
     this.inboundLocationId = inboundLocationId;
+    this.sourceLineId = sourceLineId;
     this.reversalOfStockEntryLineId = reversalOfStockEntryLineId;
     this.remark = remark;
   }

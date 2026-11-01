@@ -54,7 +54,6 @@ import org.jspecify.annotations.Nullable;
     name = "PurchaseOrder",
     indexes = {
       @Index(name = "IX_PurchaseOrder_SupplierId", columnList = "SupplierId"),
-      @Index(name = "IX_PurchaseOrder_OrderTime", columnList = "OrderTime"),
       @Index(name = "IX_PurchaseOrder_Status", columnList = "Status")
     })
 public class PurchaseOrder extends OrderAggregateRoot {
@@ -68,10 +67,6 @@ public class PurchaseOrder extends OrderAggregateRoot {
   @Column(name = "SupplierOrderNumber", length = 100)
   @Nullable
   private String supplierOrderNumber;
-
-  /** 下单时间 */
-  @Column(name = "OrderTime", nullable = false)
-  private LocalDateTime orderTime;
 
   /** 交期（可空）：供应商答应哪天到，收货排期靠它 */
   @Column(name = "DeliveryTime")
@@ -103,7 +98,6 @@ public class PurchaseOrder extends OrderAggregateRoot {
    *
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
@@ -111,12 +105,11 @@ public class PurchaseOrder extends OrderAggregateRoot {
   PurchaseOrder(
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       String number) {
     super(number);
-    apply(supplierId, supplierOrderNumber, orderTime, deliveryTime, remark);
+    apply(supplierId, supplierOrderNumber, deliveryTime, remark);
     this.status = PurchaseOrderStatusEnum.DRAFT.getCode();
   }
 
@@ -144,7 +137,6 @@ public class PurchaseOrder extends OrderAggregateRoot {
    *
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态时抛出
@@ -152,11 +144,10 @@ public class PurchaseOrder extends OrderAggregateRoot {
   public void modify(
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     ensureDraft();
-    apply(supplierId, supplierOrderNumber, orderTime, deliveryTime, remark);
+    apply(supplierId, supplierOrderNumber, deliveryTime, remark);
   }
 
   /**
@@ -382,26 +373,20 @@ public class PurchaseOrder extends OrderAggregateRoot {
    *
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
-   * @throws DomainException 供应商非法，或交期早于下单时间时抛出
+   * @throws DomainException 供应商非法时抛出
    */
   private void apply(
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark) {
     if (supplierId <= 0) {
       throw new DomainException("供应商不能为空");
     }
-    if (deliveryTime != null && deliveryTime.isBefore(orderTime)) {
-      throw new DomainException("交期不能早于下单时间");
-    }
     this.supplierId = supplierId;
     this.supplierOrderNumber = StringUtils.trimToNull(supplierOrderNumber);
-    this.orderTime = orderTime;
     this.deliveryTime = deliveryTime;
     this.remark = remark;
   }

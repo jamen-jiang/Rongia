@@ -175,6 +175,7 @@ public class StockEntry extends OrderAggregateRoot {
    * @param qty 数量（普通单为正，红字单为负）
    * @param outboundLocationId 出库库位Id（可空，与入库库位至少填一个）
    * @param inboundLocationId 入库库位Id（可空，与出库库位至少填一个）
+   * @param sourceLineId 来源单据行Id（可空，指回业务单上的那一行）
    * @param reversalOfStockEntryLineId 被冲的原行Id（可空，红字行必填、普通行传 null）
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态、正负号与本单性质不符、或同一流转已在单内时抛出
@@ -185,6 +186,7 @@ public class StockEntry extends OrderAggregateRoot {
       BigDecimal qty,
       @Nullable Long outboundLocationId,
       @Nullable Long inboundLocationId,
+      @Nullable Long sourceLineId,
       @Nullable Long reversalOfStockEntryLineId,
       @Nullable String remark) {
     ensureDraft();
@@ -210,6 +212,7 @@ public class StockEntry extends OrderAggregateRoot {
             qty,
             outboundLocationId,
             inboundLocationId,
+            sourceLineId,
             reversalOfStockEntryLineId,
             remark));
   }

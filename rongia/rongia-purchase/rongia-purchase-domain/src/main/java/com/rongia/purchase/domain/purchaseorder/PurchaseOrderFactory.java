@@ -26,7 +26,6 @@ public class PurchaseOrderFactory {
    *
    * @param supplierId 供应商Id
    * @param supplierOrderNumber 供应商单号（可空）
-   * @param orderTime 下单时间
    * @param deliveryTime 交期（可空）
    * @param remark 备注（可空）
    * @param number 采购单号（传空串表示由 OrderAddedEvent 的监听器分配）
@@ -36,7 +35,6 @@ public class PurchaseOrderFactory {
   public PurchaseOrder create(
       long supplierId,
       @Nullable String supplierOrderNumber,
-      LocalDateTime orderTime,
       @Nullable LocalDateTime deliveryTime,
       @Nullable String remark,
       String number) {
@@ -47,7 +45,6 @@ public class PurchaseOrderFactory {
     return new PurchaseOrder(
         supplierId,
         supplierOrderNumber,
-        orderTime,
         deliveryTime,
         remark,
         number);

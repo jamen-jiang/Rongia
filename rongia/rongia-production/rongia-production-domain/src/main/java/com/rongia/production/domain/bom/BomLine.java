@@ -123,7 +123,7 @@ public class BomLine extends BaseDeleteEntity {
    * 按父件数量计算需求数量，保留 2 位小数
    *
    * <p>单位用量 × (父件数量 ÷ BOM 产出数量) × (1 + 损耗率 / 100)。单位用量是「BOM 产出数量」这一批量下的量，
-   * 所以先折算成单件，再乘工单数量。
+   * 所以先折算成单件，再乘工单数量。损耗算进需求里（照 Odoo：计划侧不单独备废）。
    *
    * @param parentQty 父件生产数量
    * @param outputQty BOM 的产出数量
@@ -131,12 +131,7 @@ public class BomLine extends BaseDeleteEntity {
    * @throws DomainException 父件数量为负、或产出数量非正时抛出
    */
   public BigDecimal requiredQty(BigDecimal parentQty, BigDecimal outputQty) {
-    if (parentQty.signum() < 0) {
-      throw new DomainException("父件数量不能为负数");
-    }
-    if (outputQty.signum() <= 0) {
-      throw new DomainException("BOM 产出数量必须大于0");
-    }
+    checkQty(parentQty, outputQty);
     return this.qty
         .multiply(parentQty)
         .divide(outputQty, 6, RoundingMode.HALF_UP)
@@ -145,6 +140,22 @@ public class BomLine extends BaseDeleteEntity {
   }
 
   // ==================== 私有：校验与赋值 ====================
+
+  /**
+   * 校验参与折算的数量
+   *
+   * @param parentQty 父件生产数量
+   * @param outputQty BOM 的产出数量
+   * @throws DomainException 父件数量为负、或产出数量非正时抛出
+   */
+  private void checkQty(BigDecimal parentQty, BigDecimal outputQty) {
+    if (parentQty.signum() < 0) {
+      throw new DomainException("父件数量不能为负数");
+    }
+    if (outputQty.signum() <= 0) {
+      throw new DomainException("BOM 产出数量必须大于0");
+    }
+  }
 
   /**
    * 损耗系数：1 + 损耗率 / 100

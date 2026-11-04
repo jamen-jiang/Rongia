@@ -905,7 +905,7 @@ public class WorkOrder extends OrderAggregateRoot {
   }
 
   /**
-   * 是否已达数量口径：末道良品加全流程报废不小于计划数量
+   * 是否已达数量口径：末道良品不小于计划数量
    *
    * @return true 表示已达成
    */

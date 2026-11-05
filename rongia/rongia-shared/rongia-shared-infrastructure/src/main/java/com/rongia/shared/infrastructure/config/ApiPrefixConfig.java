@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.HandlerTypePredicate;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /** 只给 com.rongia 包下 @RestController 加 /api 前缀，SpringDoc / Knife4j 不受影响 */
 @Configuration
@@ -17,6 +18,11 @@ public class ApiPrefixConfig implements WebMvcConfigurer {
    */
   @Override
   public void configurePathMatch(PathMatchConfigurer configurer) {
+    // URL 匹配不区分大小写：/API/User/GetList 与 /api/user/getlist 等价
+    PathPatternParser parser = new PathPatternParser();
+    parser.setCaseSensitive(false);
+    configurer.setPatternParser(parser);
+
     configurer.addPathPrefix(
         "/api",
         HandlerTypePredicate.forAnnotation(RestController.class)

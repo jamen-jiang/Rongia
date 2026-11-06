@@ -1,7 +1,5 @@
 package com.rongia.shared.infrastructure.security.token;
 
-import com.rongia.shared.infrastructure.core.http.HttpContext;
-import com.rongia.shared.infrastructure.core.http.HttpContextHolder;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -28,14 +26,19 @@ public class TokenService {
    */
   private static final String USER_TOKENS_PREFIX = "jwt:user:tokens:";
 
-  /** 用户登录元信息前缀：{userId} -> {username, clientIp, loginAt} */
+  /** 用户登录元信息前缀（按会话隔离）：jwt:user:meta:{userId}:{sessionId} -> {username, clientIp, loginAt} */
   private static final String USER_META_PREFIX = "jwt:user:meta:";
 
   /** 全局在线用户集合 */
   private static final String ONLINE_USERS_KEY = "jwt:online:users";
 
-  /** 踢人时黑名单兜底 TTL（应 ≥ JWT 最长有效期） */
-  private static final long KICK_FALLBACK_TTL_MILLIS = Duration.ofDays(7).toMillis();
+  /**
+   * 踢人时黑名单兜底 TTL
+   *
+   * <p>必须严格大于两种令牌的最长有效期（当前 refresh 7 天，这里取 8 天留一天余量）。
+   * 原来取 7 天与 refresh 完全相等是配置巧合：被拉黑的令牌一旦比黑名单晚过期就会"复活"
+   */
+  private static final long KICK_FALLBACK_TTL_MILLIS = Duration.ofDays(8).toMillis();
 
   /** Redis 模板 */
   private final RedisTemplate<String, Object> redisTemplate;
@@ -46,10 +49,24 @@ public class TokenService {
   /**
    * 构造器注入
    *
+   * <p>⑤ 兜底 TTL 必须严格大于两种令牌的最长有效期：拉黑时长若小于令牌剩余有效期，
+   * 被拉黑的令牌会在 TTL 到期后"复活"。配置错误直接拒绝启动，而不是靠巧合
+   *
    * @param redisTemplate Redis 模板
-   * @param jwtProvider JWT 工具类
+   * @param jwtProvider JWT 工具类（用于拉黑前校验令牌）
+   * @throws IllegalStateException jwt.* 有效期配置 ≥ 兜底 TTL 时抛出
    */
-  public TokenService(RedisTemplate<String, Object> redisTemplate, JwtProvider jwtProvider) {
+  public TokenService(
+      RedisTemplate<String, Object> redisTemplate,
+      JwtProvider jwtProvider) {
+    if (jwtProvider.getAccessTokenExpiration() >= KICK_FALLBACK_TTL_MILLIS
+        || jwtProvider.getRefreshTokenExpiration() >= KICK_FALLBACK_TTL_MILLIS) {
+      throw new IllegalStateException(
+          "JWT 有效期配置错误：jwt.access-token-expiration / jwt.refresh-token-expiration "
+              + "必须小于黑名单兜底 TTL（"
+              + Duration.ofMillis(KICK_FALLBACK_TTL_MILLIS).toDays()
+              + " 天），否则被踢下线的令牌会在黑名单过期后重新可用");
+    }
     this.redisTemplate = redisTemplate;
     this.jwtProvider = jwtProvider;
   }
@@ -174,8 +191,8 @@ public class TokenService {
     redisTemplate.opsForSet().add(tokensKey, jti);
     redisTemplate.expire(tokensKey, Duration.ofMillis(expireMillis));
 
-    // 2. 记录用户登录元信息
-    String metaKey = USER_META_PREFIX + userId;
+    // 2. 记录本次会话的登录元信息（按会话隔离：多端登录各自的 username / clientIp / loginAt 互不覆盖）
+    String metaKey = sessionMetaKey(userId, jti);
     Map<String, Object> meta = new HashMap<>(4);
     meta.put("userId", userId);
     meta.put("username", username);
@@ -205,7 +222,7 @@ public class TokenService {
     redisTemplate.opsForSet().add(tokensKey, sessionId);
     redisTemplate.expire(tokensKey, ttl);
 
-    redisTemplate.expire(USER_META_PREFIX + userId, ttl);
+    redisTemplate.expire(sessionMetaKey(userId, sessionId), ttl);
 
     redisTemplate.opsForSet().add(ONLINE_USERS_KEY, userId);
   }
@@ -219,12 +236,13 @@ public class TokenService {
   public void unregisterLogin(long userId, @NonNull String jti) {
     String tokensKey = USER_TOKENS_PREFIX + userId;
     redisTemplate.opsForSet().remove(tokensKey, jti);
+    // 该会话的元信息随之删除（按会话隔离）
+    redisTemplate.delete(sessionMetaKey(userId, jti));
 
     // 该用户没有其他有效 token 时，清理在线状态
     Long size = redisTemplate.opsForSet().size(tokensKey);
     if (size == null || size == 0) {
       redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, userId);
-      redisTemplate.delete(USER_META_PREFIX + userId);
     }
   }
 
@@ -253,49 +271,44 @@ public class TokenService {
     // 3. 清理刷新令牌（必须在删除会话集合之前，否则拿不到 jti 列表）
     removeAllRefreshTokens(userId);
 
-    // 4. 清理会话集合、元信息
+    // 4. 清理会话集合
     redisTemplate.delete(tokensKey);
-    redisTemplate.delete(USER_META_PREFIX + userId);
 
-    // 5. 从在线列表移除
+    // 5. 清理该用户所有会话的元信息
+    for (Object jti : jtis) {
+      redisTemplate.delete(sessionMetaKey(userId, jti.toString()));
+    }
+
+    // 6. 从在线列表移除
     redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, userId);
 
     return jtis.size();
   }
 
   /**
-   * 撤销当前请求的 accessToken：拉黑 + 从会话集合移除
-   *
-   * <p>语义等价于"拉黑 + 取消登记"，会话集合为空时自动清理在线列表
+   * 拉黑指定的 accessToken 并将其会话从在线登记中移除（登出时由调用方传入当前请求的令牌）
    *
    * <p>黑名单时长用兜底 TTL 而非当前 token 的剩余时长：jti 即会话标识，同一会话内先签发的
    * access token 可能比当前这个剩余更久，按当前剩余拉黑会让旧令牌在会话结束前重新可用
+   *
+   * @param token access token（Bearer 后面的部分）。null / 非法令牌直接忽略
    */
-  public void revokeCurrentAccessToken() {
-    HttpContext httpContext = HttpContextHolder.getContext();
-    if (httpContext == null) {
-      return;
-    }
-    String token = httpContext.getToken();
+  public void revokeAccessToken(@Nullable String token) {
     if (token == null || !jwtProvider.isValidToken(token)) {
       return;
     }
-
-    // 1. 取 userId 和 jti
-    Long userId = jwtProvider.getUserId(token);
-    String jti = jwtProvider.getJti(token);
-
-    // 2. 拉黑 accessToken（兜底 TTL ≥ JWT 最长有效期）
-    addToBlacklist(jti, KICK_FALLBACK_TTL_MILLIS);
-
-    // 3. 从会话集合移除（集合空了会自动清理在线列表和 meta）
-    unregisterLogin(userId, jti);
+    TokenPayload payload = jwtProvider.parsePayload(token);
+    addToBlacklist(payload.jti(), KICK_FALLBACK_TTL_MILLIS);
+    unregisterLogin(payload.userId(), payload.jti());
   }
 
   // ==================== 在线列表 ====================
 
   /**
    * 获取在线用户列表
+   *
+   * <p>顺带自愈：在线集合本 key 无 TTL、只进不出（登出 / 踢人兜底失败会残留 userId）。
+   * 读取时发现某 userId 已无任何会话登记，就从集合中移除并跳过
    *
    * @return 在线用户信息列表
    */
@@ -307,19 +320,27 @@ public class TokenService {
 
     List<Map<String, Object>> result = new ArrayList<>(userIds.size());
     for (Object uid : userIds) {
-      Map<String, Object> meta = loadUserMeta(uid.toString());
-      if (meta != null) {
-        // 附带该用户当前会话数
-        Long sessionCount = redisTemplate.opsForSet().size(USER_TOKENS_PREFIX + uid);
-        meta.put("sessionCount", sessionCount == null ? 0 : sessionCount);
-        result.add(meta);
+      String tokensKey = USER_TOKENS_PREFIX + uid;
+      Long sessionCount = redisTemplate.opsForSet().size(tokensKey);
+      long count = sessionCount == null ? 0 : sessionCount;
+      if (count == 0) {
+        // 残留条目自愈：用户已无任何会话，从在线集合移除
+        redisTemplate.opsForSet().remove(ONLINE_USERS_KEY, uid);
+        continue;
       }
+      // 取该用户最新会话的元信息作为展示主体
+      Map<String, Object> meta = latestSessionMeta(uid.toString());
+      if (meta == null) {
+        continue;
+      }
+      meta.put("sessionCount", count);
+      result.add(meta);
     }
     return result;
   }
 
   /**
-   * 获取指定用户的在线会话
+   * 获取指定用户的在线会话（每个会话各自的登录元信息：username / clientIp / loginAt）
    *
    * @param userId 用户 ID
    * @return 会话信息列表
@@ -330,13 +351,14 @@ public class TokenService {
       return Collections.emptyList();
     }
 
-    Map<String, Object> meta = loadUserMeta(String.valueOf(userId));
     return jtis.stream()
         .map(
             jti -> {
+              String sessionId = jti.toString();
               Map<String, Object> session = new HashMap<>(8);
-              session.put("jti", jti.toString());
+              session.put("jti", sessionId);
               session.put("userId", userId);
+              Map<String, Object> meta = loadSessionMeta(userId, sessionId);
               if (meta != null) {
                 session.putAll(meta);
               }
@@ -348,19 +370,65 @@ public class TokenService {
   // ==================== 私有工具 ====================
 
   /**
-   * 读取用户登录元信息
+   * 会话元信息 Redis key（按会话隔离）
    *
    * @param userId 用户 ID
+   * @param sessionId 会话标识
+   * @return Redis key
+   */
+  private String sessionMetaKey(long userId, @NonNull String sessionId) {
+    return USER_META_PREFIX + userId + ":" + sessionId;
+  }
+
+  /**
+   * 读取一个会话的登录元信息
+   *
+   * @param userId 用户 ID
+   * @param sessionId 会话标识
    * @return 元信息 Map，不存在返回 null
    */
   @Nullable
-  private Map<String, Object> loadUserMeta(String userId) {
-    Map<Object, Object> raw = redisTemplate.opsForHash().entries(USER_META_PREFIX + userId);
+  private Map<String, Object> loadSessionMeta(long userId, @NonNull String sessionId) {
+    Map<Object, Object> raw = redisTemplate.opsForHash().entries(sessionMetaKey(userId, sessionId));
     if (raw == null || raw.isEmpty()) {
       return null;
     }
     Map<String, Object> meta = new HashMap<>(raw.size());
     raw.forEach((k, v) -> meta.put(k.toString(), v));
     return meta;
+  }
+
+  /**
+   * 取该用户所有会话中 loginAt 最新的元信息（在线列表展示用）
+   *
+   * @param userId 用户 ID 字符串
+   * @return 元信息 Map，不存在返回 null
+   */
+  @Nullable
+  private Map<String, Object> latestSessionMeta(@NonNull String userId) {
+    Set<Object> jtis = redisTemplate.opsForSet().members(USER_TOKENS_PREFIX + userId);
+    if (jtis == null || jtis.isEmpty()) {
+      return null;
+    }
+    long latest = Long.MIN_VALUE;
+    Map<String, Object> latestMeta = null;
+    for (Object jti : jtis) {
+      Map<String, Object> meta;
+      try {
+        meta = loadSessionMeta(Long.parseLong(userId), jti.toString());
+      } catch (NumberFormatException e) {
+        continue;
+      }
+      if (meta == null) {
+        continue;
+      }
+      Object loginAt = meta.get("loginAt");
+      long at = loginAt instanceof Number number ? number.longValue() : Long.MIN_VALUE;
+      if (at >= latest) {
+        latest = at;
+        latestMeta = meta;
+      }
+    }
+    return latestMeta;
   }
 }

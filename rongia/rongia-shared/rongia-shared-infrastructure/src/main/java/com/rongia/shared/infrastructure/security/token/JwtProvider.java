@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 /** JWT 工具类实现 */
 @Component
-@Getter
 public class JwtProvider {
 
   /** userName 的 claim 键名 */
@@ -31,10 +30,10 @@ public class JwtProvider {
   private final JwtParser parser;
 
   /** 访问令牌过期时间（毫秒） */
-  private final long accessTokenExpiration;
+  @Getter private final long accessTokenExpiration;
 
   /** 刷新令牌过期时间（毫秒） */
-  private final long refreshTokenExpiration;
+  @Getter private final long refreshTokenExpiration;
 
   /**
    * 构造器注入
@@ -141,6 +140,8 @@ public class JwtProvider {
   /**
    * 一次性解析令牌，返回会话所需的全部字段
    *
+   * <p>filter / issuer 等需要多个字段的调用方应使用本方法，一次解析贯穿使用，避免对同一令牌重复 parse
+   *
    * @param token JWT
    * @return 解析结果
    */
@@ -151,59 +152,7 @@ public class JwtProvider {
         Long.parseLong(claims.getSubject()),
         claims.get(CLAIM_USER_NAME, String.class),
         claims.getId(),
+        claims.get(CLAIM_SESSION_ID, String.class),
         remainingMillis);
-  }
-
-  /**
-   * 获取用户Id
-   *
-   * @param token JWT
-   * @return 用户Id
-   */
-  public Long getUserId(@NonNull String token) {
-    return Long.valueOf(parseToken(token).getSubject());
-  }
-
-  /**
-   * 获取账号
-   *
-   * @param token JWT
-   * @return 账号
-   */
-  public String getUserName(@NonNull String token) {
-    return parseToken(token).get(CLAIM_USER_NAME, String.class);
-  }
-
-  /**
-   * 获取 jti
-   *
-   * @param token JWT
-   * @return jti
-   */
-  public String getJti(@NonNull String token) {
-    return parseToken(token).getId();
-  }
-
-  /**
-   * 获取会话标识
-   *
-   * <p>历史令牌（本次改造前签发）不含该 claim，此时返回 null，调用方按"无会话"降级处理
-   *
-   * @param token JWT
-   * @return 会话标识，不存在返回 null
-   */
-  public String getSessionId(@NonNull String token) {
-    return parseToken(token).get(CLAIM_SESSION_ID, String.class);
-  }
-
-  /**
-   * 获取剩余有效期
-   *
-   * @param token JWT
-   * @return 剩余毫秒
-   */
-  public long getRemainingMillis(@NonNull String token) {
-    Date expiration = parseToken(token).getExpiration();
-    return expiration.getTime() - System.currentTimeMillis();
   }
 }

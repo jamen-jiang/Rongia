@@ -1,6 +1,7 @@
 package com.rongia.shared.infrastructure.security.filter;
 
 import com.rongia.shared.infrastructure.security.token.JwtProvider;
+import com.rongia.shared.infrastructure.security.token.TokenPayload;
 import com.rongia.shared.infrastructure.security.token.TokenService;
 import com.rongia.shared.infrastructure.security.user.LoginUser;
 import com.rongia.shared.infrastructure.security.user.LoginUserCache;
@@ -8,7 +9,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j; // ★ 引入 Lombok 日志
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /** JWT 认证过滤器 */
-@Slf4j // ★ 加上日志注解
+@Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -46,10 +47,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
    * @param tokenService 令牌 Redis 管理
    */
   public JwtAuthenticationFilter(
-          JwtProvider jwtProvider,
-          UserDetailsService userDetailsService,
-          LoginUserCache loginUserCache,
-          TokenService tokenService) {
+      JwtProvider jwtProvider,
+      UserDetailsService userDetailsService,
+      LoginUserCache loginUserCache,
+      TokenService tokenService) {
     this.jwtProvider = jwtProvider;
     this.userDetailsService = userDetailsService;
     this.loginUserCache = loginUserCache;
@@ -68,8 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   @Override
   @NullMarked
   protected void doFilterInternal(
-          HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-          throws ServletException, IOException {
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
     // 1. 从 Authorization 头取 token
     String authHeader = request.getHeader("Authorization");
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -80,50 +81,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     String token = authHeader.substring(7);
 
-    // 2. 验证 token 有效性（签名 + 过期时间）
-    if (!jwtProvider.isValidToken(token)) {
-      log.debug("无效的 JWT Token，放行交由 Security 处理"); // ★ 增加日志
+    // 2. 一次性解析（校验签名与有效期），后续全部字段从 payload 取，避免反复 parse
+    TokenPayload payload;
+    try {
+      payload = jwtProvider.parsePayload(token);
+    } catch (Exception e) {
+      log.debug("无效的 JWT Token，放行交由 Security 处理");
       filterChain.doFilter(request, response);
       return;
     }
 
     // 3. 检查黑名单（登出 / 踢人下线的 token 会在这里被拦截）
-    String jti = jwtProvider.getJti(token);
-    if (tokenService.isBlacklisted(jti)) {
-      log.debug("JWT Token 已被列入黑名单，放行交由 Security 处理"); // ★ 增加日志
+    if (tokenService.isBlacklisted(payload.jti())) {
+      log.debug("JWT Token 已被列入黑名单，放行交由 Security 处理");
       filterChain.doFilter(request, response);
       return;
     }
 
-    // 4. 从 token 取 userId
-    Long userId = jwtProvider.getUserId(token);
-
-    // 5. 未认证时，塞入 SecurityContext
+    // 4. 未认证时，塞入 SecurityContext
     if (SecurityContextHolder.getContext().getAuthentication() == null) {
-      // 5.1 从 Redis 缓存拿 LoginUser
-      LoginUser loginUser = loginUserCache.get(userId);
+      // 4.1 从 Redis 缓存拿 LoginUser
+      LoginUser loginUser = loginUserCache.get(payload.userId());
 
-      // 5.2 缓存未命中，查数据库；查不到就当无效 token 处理
+      // 4.2 缓存未命中，查数据库；查不到就当无效 token 处理
       if (loginUser == null) {
-        String userName = jwtProvider.getUserName(token);
         try {
-          loginUser = (LoginUser) userDetailsService.loadUserByUsername(userName);
+          loginUser = (LoginUser) userDetailsService.loadUserByUsername(payload.userName());
         } catch (UsernameNotFoundException e) {
-          log.warn("JWT Token 中的用户 {} 在数据库中不存在，放行交由 Security 处理", userName); // ★ 增加日志
+          log.warn(
+              "JWT Token 中的用户 {} 在数据库中不存在，放行交由 Security 处理", payload.userName());
           filterChain.doFilter(request, response);
           return;
         }
-        // 5.3 写回缓存
+        // 4.3 写回缓存
         loginUserCache.put(loginUser);
       }
 
-      // 5.4 塞进 SecurityContext
+      // 4.4 塞进 SecurityContext
       UsernamePasswordAuthenticationToken authentication =
-              new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
+          new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
       authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
       SecurityContextHolder.getContext().setAuthentication(authentication);
 
-      log.debug("JWT 认证成功，用户: {}", loginUser.getUsername()); // ★ 增加日志
+      log.debug("JWT 认证成功，用户: {}", loginUser.getUsername());
     }
 
     filterChain.doFilter(request, response);

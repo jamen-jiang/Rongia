@@ -5,6 +5,7 @@ import com.rongia.shared.application.exception.ApiException;
 import com.rongia.shared.infrastructure.core.http.HttpContext;
 import com.rongia.shared.infrastructure.core.http.HttpContextHolder;
 import com.rongia.shared.infrastructure.security.token.JwtProvider;
+import com.rongia.shared.infrastructure.security.token.TokenPayload;
 import com.rongia.shared.infrastructure.security.token.TokenService;
 import com.rongia.shared.infrastructure.security.user.LoginUser;
 import com.rongia.shared.infrastructure.security.user.LoginUserCache;
@@ -109,7 +110,7 @@ public class JwtTokenIssuer implements TokenIssuer {
     tokenService.registerLogin(
         loginUser.getUserId(),
         loginUser.getUsername(),
-        jwtProvider.getJti(accessToken),
+        jwtProvider.parsePayload(accessToken).jti(),
         getClientIp(),
         jwtProvider.getRefreshTokenExpiration());
 
@@ -131,14 +132,17 @@ public class JwtTokenIssuer implements TokenIssuer {
    */
   @Override
   public @NonNull TokenPair refresh(@NonNull String refreshToken) {
-    // 1. 校验刷新令牌签名与有效期
-    if (!jwtProvider.isValidToken(refreshToken)) {
+    // 1. 一次性解析（校验签名与有效期），后续字段全部从 payload 取，避免反复 parse
+    TokenPayload payload;
+    try {
+      payload = jwtProvider.parsePayload(refreshToken);
+    } catch (Exception e) {
       throw new ApiException(ApiStatusEnum.FAIL_TOKEN_UNVALID, "刷新令牌无效或已过期");
     }
-    Long userId = jwtProvider.getUserId(refreshToken);
+    Long userId = payload.userId();
 
-    // 2. 取会话标识
-    String sessionId = jwtProvider.getSessionId(refreshToken);
+    // 2. 取会话标识（历史令牌不含 sid claim，按无效处理）
+    String sessionId = payload.sessionId();
     if (sessionId == null) {
       throw new ApiException(ApiStatusEnum.FAIL_TOKEN_UNVALID, "刷新令牌无效");
     }
@@ -152,8 +156,7 @@ public class JwtTokenIssuer implements TokenIssuer {
     // 4. 从缓存拿 LoginUser；缓存 miss 则查库（顺便校验用户是否还存在）
     LoginUser loginUser = loginUserCache.get(userId);
     if (loginUser == null) {
-      String userName = jwtProvider.getUserName(refreshToken);
-      Object principal = userDetailsService.loadUserByUsername(userName);
+      Object principal = userDetailsService.loadUserByUsername(payload.userName());
       if (!(principal instanceof LoginUser lu)) {
         throw new ApiException("用户信息异常");
       }
@@ -192,12 +195,15 @@ public class JwtTokenIssuer implements TokenIssuer {
   @Override
   @Nullable
   public SignOutResult revoke(@NonNull String refreshToken) {
-    // 1. 校验刷新令牌；无效直接返回 null
-    if (!jwtProvider.isValidToken(refreshToken)) {
+    // 1. 一次性解析（校验签名与有效期）；无效直接返回 null
+    TokenPayload payload;
+    try {
+      payload = jwtProvider.parsePayload(refreshToken);
+    } catch (Exception e) {
       return null;
     }
-    Long userId = jwtProvider.getUserId(refreshToken);
-    String sessionId = jwtProvider.getSessionId(refreshToken);
+    Long userId = payload.userId();
+    String sessionId = payload.sessionId();
     if (sessionId == null) {
       return null;
     }
@@ -205,10 +211,10 @@ public class JwtTokenIssuer implements TokenIssuer {
     // 2. 取 LoginUser（用于日志返回），必须在删缓存之前
     LoginUser loginUser = loginUserCache.get(userId);
 
-    // 3. 拉黑当前 accessToken + 从会话集合移除
-    tokenService.revokeCurrentAccessToken();
+    // 3. 拉黑当前请求头里的 accessToken（无 / 非法时内部直接忽略）并从会话集合移除
+    tokenService.revokeAccessToken(currentAccessToken());
 
-    // 4. 显式注销本会话：登出接口不保证请求头带 accessToken，此时上面的调用会提前返回，
+    // 4. 显式注销本会话：登出请求可能不带 accessToken，上面那步会跳过，
     //    需按 refresh token 里的会话标识兜底，避免会话残留在在线列表
     tokenService.unregisterLogin(userId, sessionId);
 
@@ -223,6 +229,20 @@ public class JwtTokenIssuer implements TokenIssuer {
       return new SignOutResult(loginUser.getUserId(), loginUser.getUsername(), loginUser.getName());
     }
     return new SignOutResult(userId, null, null);
+  }
+
+  /**
+   * 从 HttpContext 取当前请求的 access token
+   *
+   * @return access token（Bearer 后面的部分），取不到返回 null
+   */
+  @Nullable
+  private String currentAccessToken() {
+    HttpContext httpContext = HttpContextHolder.getContext();
+    if (httpContext == null) {
+      return null;
+    }
+    return httpContext.getToken();
   }
 
   /**

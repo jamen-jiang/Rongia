@@ -1,9 +1,9 @@
 package com.rongia.shared.infrastructure.websocket;
 
-import com.rongia.shared.infrastructure.security.token.JwtProvider;
-import com.rongia.shared.infrastructure.security.token.TokenPayload;
-import com.rongia.shared.infrastructure.security.token.TokenService;
-import java.util.List;
+import cn.dev33.satoken.session.SaSession;
+import cn.dev33.satoken.stp.StpUtil;
+import com.rongia.shared.infrastructure.security.user.LoginUser;
+import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
 import org.jspecify.annotations.NonNull;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -12,7 +12,6 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,9 +21,9 @@ import org.springframework.stereotype.Component;
  *
  * <ol>
  *   <li>从 CONNECT 帧的 Authorization header 中取 Token
- *   <li>JwtProvider 解析并校验签名、有效期
- *   <li>TokenService 查 Redis 黑名单，确认未被吊销
- *   <li>构建 UserPrincipal 并绑定到会话
+ *   <li>直接查 Sa-Token 的 Redis 映射（STOMP 帧无 HTTP 上下文，走纯 DAO 查询），
+ *       未通过按 INVALID / REVOKED 抛 MessagingException，转成前端错误码
+ *   <li>从 TokenSession 读登录用户快照，构建 UserPrincipal 并绑定到会话
  * </ol>
  *
  * <p>认证一次后，后续推送通过 Principal 定位用户，无需重复校验。
@@ -37,14 +36,6 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
 
   /** Bearer 前缀 */
   private static final String BEARER_PREFIX = "Bearer ";
-
-  private final JwtProvider jwtProvider;
-  private final TokenService tokenService;
-
-  public AuthChannelInterceptor(JwtProvider jwtProvider, TokenService tokenService) {
-    this.jwtProvider = jwtProvider;
-    this.tokenService = tokenService;
-  }
 
   @Override
   public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
@@ -63,23 +54,25 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
     }
     String token = bearer.substring(BEARER_PREFIX.length());
 
-    // 2. 解析 Token（校验签名与有效期）
-    TokenPayload payload;
-    try {
-      payload = jwtProvider.parsePayload(token);
-    } catch (Exception e) {
-      // 前端收到 TOKEN_INVALID，会触发 axios 拦截器去刷新 Token
+    // 2. 查令牌→账号映射：null = 不存在或已过期；负数哨兵 = 被踢下线(-4)/已注销(-5)/被顶下线(-6)
+    Object loginId = StpUtil.getLoginIdByToken(token);
+    if (loginId == null) {
+      // 令牌无效（未登录 / 已过期），前端据此引导重新登录
       throw new MessagingException("TOKEN_INVALID");
     }
-
-    // 3. 查黑名单，确认 Token 未被吊销
-    if (tokenService.isBlacklisted(payload.jti())) {
+    if (loginId instanceof Number number && number.longValue() < 0) {
       throw new MessagingException("TOKEN_REVOKED");
     }
 
+    // 3. 读登录用户快照（登录时由 OpaqueTokenIssuer 写入）
+    SaSession session = StpUtil.stpLogic.getTokenSessionByToken(token, false);
+    Object value = session == null ? null : session.get(StpLoginUserUtil.LOGIN_USER_KEY);
+    if (!(value instanceof LoginUser loginUser)) {
+      throw new MessagingException("TOKEN_INVALID");
+    }
+
     // 4. 构建 Principal 并绑定到会话
-    UserPrincipal user = new UserPrincipal(payload.userId(), payload.userName());
-    accessor.setUser(new UsernamePasswordAuthenticationToken(user, null, List.of()));
+    accessor.setUser(new UserPrincipal(loginUser.getUserId(), loginUser.getUsername()));
 
     return message;
   }

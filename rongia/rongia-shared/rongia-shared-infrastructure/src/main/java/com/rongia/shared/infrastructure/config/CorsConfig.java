@@ -20,8 +20,7 @@ public class CorsConfig {
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
 
-    config.addAllowedOrigin("http://localhost:8848"); // ★ 前端地址，写死，别用 *
-    // 允许的来源（开发环境用通配符，生产环境要写具体域名）
+    // 允许的来源：开发环境全放行；生产环境务必改成具体域名，如 List.of("https://erp.example.com")
     config.setAllowedOriginPatterns(List.of("*"));
 
     // 允许的方法

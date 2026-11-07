@@ -76,35 +76,31 @@
             <artifactId>redisson-spring-cache</artifactId>
         </dependency>
 
-        <!-- ================= 安全：Spring Security + JWT ================= -->
+        <!-- ================= 安全：Sa-Token（登录态 / 鉴权） + BCrypt ================= -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot4-starter</artifactId>
         </dependency>
-        <!-- Servlet API：JwtAuthenticationFilter / HttpContextHolder / WebUtils 需要 -->
+        <!-- Sa-Token 的 Redis 存储层：复用已有的 Redisson 客户端 -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-redisson-spring-boot-starter</artifactId>
+        </dependency>
+        <!-- 密码加密：仅用 BCrypt（CompatiblePasswordEncoder），不引入 Spring Security 过滤链 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <!-- Servlet API：HttpContextHolder / WebUtils 需要 -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <scope>provided</scope>
         </dependency>
-        <!-- Spring MVC：SecurityConfig / PermitAllUrlScanner 需要 RequestMappingHandlerMapping -->
+        <!-- Spring MVC：SaTokenConfig / HttpContext 需要 -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <!-- Swagger 模型（Jakarta 版）：HttpContextHolder 使用 @Operation / @Tag -->
         <dependency>

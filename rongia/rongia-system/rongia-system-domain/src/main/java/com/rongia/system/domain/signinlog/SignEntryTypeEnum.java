@@ -12,9 +12,6 @@ public enum SignEntryTypeEnum implements BaseEnum {
   /** 登录 */
   SIGN_IN("SignIn", "登录"),
 
-  /** 刷新令牌 */
-  REFRESH_TOKEN("RefreshToken", "刷新令牌"),
-
   /** 登出 */
   SIGN_OUT("SignOut", "登出");
 

@@ -1,6 +1,6 @@
 package com.rongia.shared.adapter.advice;
 
-import com.rongia.shared.application.response.ApiDataResponse;
+import com.rongia.shared.application.response.ApiResponse;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.MethodParameter;
@@ -41,7 +41,7 @@ public class ResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
       @NonNull MethodParameter returnType,
       @NonNull Class<? extends HttpMessageConverter<?>> converterType) {
     // 已经是 ApiResponse 的不再包和ResponseEntity 不包（文件下载、自定义状态码等场景）
-    if (ApiDataResponse.class.isAssignableFrom(returnType.getParameterType())
+    if (ApiResponse.class.isAssignableFrom(returnType.getParameterType())
         || ResponseEntity.class.isAssignableFrom(returnType.getParameterType())) {
       return false;
     }
@@ -69,16 +69,16 @@ public class ResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
       @NonNull ServerHttpResponse response) {
 
     // 已经是 ApiResponse 直接返回
-    if (body instanceof ApiDataResponse) {
+    if (body instanceof ApiResponse) {
       return body;
     }
 
     // String 类型需手动转 JSON，否则 StringHttpMessageConverter 会 ClassCastException
     if (body instanceof String) {
       response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-      return objectMapper.writeValueAsString(ApiDataResponse.success(body));
+      return objectMapper.writeValueAsString(ApiResponse.success(body));
     }
 
-    return ApiDataResponse.success(body);
+    return ApiResponse.success(body);
   }
 }

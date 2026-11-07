@@ -48,18 +48,6 @@ public class SignInLog extends LogAggregateRoot {
   @Nullable
   private String token;
 
-  /** 刷新令牌（可空） */
-  @Nationalized
-  @Column(name = "RefreshToken", length = 500)
-  @Nullable
-  private String refreshToken;
-
-  /** 旧刷新令牌（可空） */
-  @Nationalized
-  @Column(name = "OldRefreshToken", length = 500)
-  @Nullable
-  private String oldRefreshToken;
-
   /** IP地址（可空） */
   @Nationalized
   @Column(name = "IP", length = 200)
@@ -101,8 +89,6 @@ public class SignInLog extends LogAggregateRoot {
    * @param endedOn 结束时间
    * @param elapsedMilliseconds 耗时（毫秒）
    * @param token 令牌（可空）
-   * @param refreshToken 刷新令牌（可空）
-   * @param oldRefreshToken 旧刷新令牌（可空）
    * @param ip IP地址（可空）
    * @param city 客户端地点（可空）
    * @param userAgent 客户端 UserAgent（可空）
@@ -122,8 +108,6 @@ public class SignInLog extends LogAggregateRoot {
       LocalDateTime endedOn,
       long elapsedMilliseconds,
       @Nullable String token,
-      @Nullable String refreshToken,
-      @Nullable String oldRefreshToken,
       @Nullable String ip,
       @Nullable String city,
       @Nullable String userAgent,
@@ -146,8 +130,6 @@ public class SignInLog extends LogAggregateRoot {
     this.type = EnumUtils.getCode(SignEntryTypeEnum.class, type, "登录类型");
     this.userCode = StringUtils.trimToNull(userCode);
     this.token = StringUtils.trimToNull(token);
-    this.refreshToken = StringUtils.trimToNull(refreshToken);
-    this.oldRefreshToken = StringUtils.trimToNull(oldRefreshToken);
     this.ip = StringUtils.trimToNull(ip);
     this.city = StringUtils.trimToNull(city);
     this.userAgent = StringUtils.trimToNull(userAgent);

@@ -1,18 +1,16 @@
 package com.rongia.system.infrastructure.security.user;
 
+import com.rongia.shared.application.exception.ApiException;
 import com.rongia.shared.infrastructure.security.user.LoginUser;
 import com.rongia.system.domain.user.User;
 import com.rongia.system.infrastructure.user.UserJpa;
 import org.jspecify.annotations.NonNull;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 用户详情服务：把 User 聚合装配成 Spring Security 用的 LoginUser */
+/** 登录用户装配服务：把 User 聚合装配成带权限快照的 LoginUser */
 @Service
-public class LoginUserService implements UserDetailsService {
+public class LoginUserService {
 
   /** 用户 JPA */
   private final UserJpa userJpa;
@@ -35,17 +33,15 @@ public class LoginUserService implements UserDetailsService {
    * 按账号加载用户
    *
    * @param userName 账号
-   * @return UserDetails
-   * @throws UsernameNotFoundException 用户不存在时抛出
+   * @return LoginUser
+   * @throws ApiException 用户不存在时抛出
    */
-  @Override
   @Transactional(readOnly = true)
-  public @NonNull UserDetails loadUserByUsername(@NonNull String userName)
-      throws UsernameNotFoundException {
+  public @NonNull LoginUser loadUserByUsername(@NonNull String userName) {
     User model =
         userJpa
             .findByUserName(userName)
-            .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + userName));
+            .orElseThrow(() -> new ApiException("账号或密码错误"));
     return buildLoginUser(model);
   }
 
@@ -54,14 +50,14 @@ public class LoginUserService implements UserDetailsService {
    *
    * @param userId 用户Id
    * @return LoginUser
-   * @throws UsernameNotFoundException 用户不存在时抛出
+   * @throws ApiException 用户不存在时抛出
    */
   @Transactional(readOnly = true)
-  public LoginUser loadUserByUserId(@NonNull Long userId) throws UsernameNotFoundException {
+  public @NonNull LoginUser loadUserByUserId(@NonNull Long userId) {
     User model =
         userJpa
             .findById(userId)
-            .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + userId));
+            .orElseThrow(() -> new ApiException("用户不存在: " + userId));
     return buildLoginUser(model);
   }
 

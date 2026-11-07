@@ -98,10 +98,10 @@ public final class HttpContextHolder {
   }
 
   /**
-   * 解析 Authorization 头中的 accessToken（去掉 Bearer 前缀）
+   * 解析 Authorization 头中的令牌（去掉 Bearer 前缀）
    *
    * @param request 请求对象
-   * @return accessToken，不存在返回 null
+   * @return 令牌，不存在返回 null
    */
   @Nullable
   private static String resolveToken(HttpServletRequest request) {

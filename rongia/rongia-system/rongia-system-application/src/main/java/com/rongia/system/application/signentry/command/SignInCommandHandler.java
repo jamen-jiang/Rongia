@@ -1,10 +1,11 @@
 package com.rongia.system.application.signentry.command;
 
+import static com.rongia.system.application.signentry.command.SignEntryHandler.SignEntryIdentity;
+
+import com.rongia.system.application.security.token.IssuedToken;
 import com.rongia.system.application.security.token.TokenIssuer;
-import com.rongia.system.application.security.token.TokenPair;
 import com.rongia.system.application.signentry.port.SignEntryRecorder;
 import com.rongia.system.domain.signinlog.SignEntryTypeEnum;
-import java.time.LocalDateTime;
 import org.axonframework.messaging.commandhandling.annotation.CommandHandler;
 import org.springframework.stereotype.Component;
 
@@ -37,33 +38,17 @@ public class SignInCommandHandler {
    */
   @CommandHandler
   public SignInResponse handle(SignInCommand command) {
-    LocalDateTime startedOn = LocalDateTime.now();
-    long startTime = System.currentTimeMillis();
-
-    Exception exception = null;
-    TokenPair tokens = null;
-
-    try {
-      tokens = tokenIssuer.issue(command.getUserName(), command.getPassword());
-      return new SignInResponse(tokens.accessToken(), tokens.refreshToken());
-    } catch (Exception e) {
-      exception = e;
-      throw e;
-    } finally {
-      signEntryRecorder.record(
-          SignEntryTypeEnum.SIGN_IN.getCode(),
-          tokens != null ? tokens.userId() : null,
-          command.getUserName(),
-          tokens != null ? tokens.name() : null,
-          startedOn,
-          LocalDateTime.now(),
-          System.currentTimeMillis() - startTime,
-          tokens != null ? tokens.accessToken() : null,
-          tokens != null ? tokens.refreshToken() : null,
-          null,
-          exception == null,
-          exception != null ? exception.getMessage() : null,
-          exception != null ? exception.toString() : null);
-    }
+    IssuedToken issued =
+        SignEntryHandler.execute(
+            SignEntryTypeEnum.SIGN_IN.getCode(),
+            signEntryRecorder,
+            () -> tokenIssuer.issue(command.getUserName(), command.getPassword()),
+            result ->
+                result != null
+                    ? new SignEntryIdentity(
+                        result.userId(), result.userName(), result.name(), result.token())
+                    // 登录失败时把命令里输入的用户名记进日志
+                    : new SignEntryIdentity(null, command.getUserName(), null, null));
+    return new SignInResponse(issued.token());
   }
 }

@@ -12,26 +12,17 @@ public enum ApiStatusEnum {
   /** 成功 */
   SUCCESS(200, "成功"),
 
-  /** 令牌无效 */
-  FAIL_TOKEN_UNVALID(1, "令牌无效"),
+  /** 失败（业务错误） */
+  FAIL(400, "失败"),
 
-  /** 令牌过期 */
-  FAIL_TOKEN_EXPIRED(2, "令牌过期"),
+  /** 未登录 / 令牌失效（过期、被顶下线等具体原因用 message 区分） */
+  UNAUTHORIZED(401, "未登录"),
 
   /** 没访问权限 */
-  FAIL_UNAUTHORIZED(401, "没访问权限"),
-
-  /** 403 */
-  FAIL_FORBIDDEN(403, "403"),
-
-  /** 应用程序错误 */
-  FAIL_APP(98, "应用程序错误"),
+  FORBIDDEN(403, "没访问权限"),
 
   /** 系统异常 */
-  FAIL_EXCEPTION(99, "系统异常"),
-
-  /** 应用程序错误提示 */
-  FAIL_APP_SHOW_TIP(100, "应用程序错误提示");
+  ERROR(500, "系统异常");
 
   /** 状态码 */
   private final Integer code;

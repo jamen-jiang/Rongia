@@ -3,12 +3,14 @@ package com.rongia.shared.infrastructure.security;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
 /**
  * 兼容明文的密码编码器
  *
  * <p>数据库中旧数据为明文时能校验通过；新密码统一用 BCrypt 加密
  */
+@Component
 public class CompatiblePasswordEncoder implements PasswordEncoder {
 
   /** BCrypt 编码器 */

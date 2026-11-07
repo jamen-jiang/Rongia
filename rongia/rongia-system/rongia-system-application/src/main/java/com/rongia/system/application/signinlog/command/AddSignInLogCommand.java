@@ -51,16 +51,6 @@ public class AddSignInLogCommand extends Command implements NoLogCommand {
   @Nullable
   private final String token;
 
-  /** 刷新令牌（可空） */
-  @Schema(description = "刷新令牌")
-  @Nullable
-  private final String refreshToken;
-
-  /** 旧刷新令牌（可空） */
-  @Schema(description = "旧刷新令牌")
-  @Nullable
-  private final String oldRefreshToken;
-
   /** IP地址（可空） */
   @Schema(description = "IP地址")
   @Nullable
@@ -111,8 +101,6 @@ public class AddSignInLogCommand extends Command implements NoLogCommand {
    * @param endedOn 结束时间
    * @param elapsedMilliseconds 耗时（毫秒）
    * @param token 令牌（可空）
-   * @param refreshToken 刷新令牌（可空）
-   * @param oldRefreshToken 旧刷新令牌（可空）
    * @param ip IP地址（可空）
    * @param city 客户端地点（可空）
    * @param userAgent 客户端 UserAgent（可空）
@@ -131,8 +119,6 @@ public class AddSignInLogCommand extends Command implements NoLogCommand {
       LocalDateTime endedOn,
       long elapsedMilliseconds,
       @Nullable String token,
-      @Nullable String refreshToken,
-      @Nullable String oldRefreshToken,
       @Nullable String ip,
       @Nullable String city,
       @Nullable String userAgent,
@@ -149,8 +135,6 @@ public class AddSignInLogCommand extends Command implements NoLogCommand {
     this.endedOn = endedOn;
     this.elapsedMilliseconds = elapsedMilliseconds;
     this.token = token;
-    this.refreshToken = refreshToken;
-    this.oldRefreshToken = oldRefreshToken;
     this.ip = ip;
     this.city = city;
     this.userAgent = userAgent;

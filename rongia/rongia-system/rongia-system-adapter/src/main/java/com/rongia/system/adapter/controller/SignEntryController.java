@@ -1,6 +1,5 @@
 package com.rongia.system.adapter.controller;
 
-import com.rongia.system.application.signentry.command.RefreshTokenCommand;
 import com.rongia.system.application.signentry.command.SignInCommand;
 import com.rongia.system.application.signentry.command.SignInResponse;
 import com.rongia.system.application.signentry.command.SignOutCommand;
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 登录入口 */
-@Tag(name = "认证管理", description = "登录、刷新令牌、登出")
+@Tag(name = "认证管理", description = "登录、登出")
 @RestController
 @RequestMapping("/SignEntry")
 public class SignEntryController {
@@ -45,22 +44,9 @@ public class SignEntryController {
   }
 
   /**
-   * 刷新令牌
-   *
-   * @param command 刷新令牌请求
-   * @return 登录响应
-   */
-  @PermitAll
-  @Operation(summary = "刷新token")
-  @PostMapping("/RefreshToken")
-  public SignInResponse refreshToken(@RequestBody RefreshTokenCommand command) {
-    return commandGateway.sendAndWait(command, SignInResponse.class);
-  }
-
-  /**
    * 登出
    *
-   * @param command 刷新令牌请求
+   * @param command 登出请求
    */
   @Operation(summary = "登出")
   @PostMapping("/SignOut")

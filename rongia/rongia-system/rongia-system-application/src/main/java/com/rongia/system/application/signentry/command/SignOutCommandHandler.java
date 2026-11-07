@@ -1,10 +1,11 @@
 package com.rongia.system.application.signentry.command;
 
+import static com.rongia.system.application.signentry.command.SignEntryHandler.SignEntryIdentity;
+
 import com.rongia.system.application.security.token.SignOutResult;
 import com.rongia.system.application.security.token.TokenIssuer;
 import com.rongia.system.application.signentry.port.SignEntryRecorder;
 import com.rongia.system.domain.signinlog.SignEntryTypeEnum;
-import java.time.LocalDateTime;
 import org.axonframework.messaging.commandhandling.annotation.CommandHandler;
 import org.springframework.stereotype.Component;
 
@@ -36,33 +37,26 @@ public class SignOutCommandHandler {
    */
   @CommandHandler
   public void handle(SignOutCommand command) {
-    LocalDateTime startedOn = LocalDateTime.now();
-    long startTime = System.currentTimeMillis();
+    // 令牌无论成败都记进日志（取不到时由日志记录器退化为上下文令牌）
+    String token = command.getToken();
+    SignEntryHandler.execute(
+        SignEntryTypeEnum.SIGN_OUT.getCode(),
+        signEntryRecorder,
+        () -> tokenIssuer.revoke(token),
+        result -> identity(result, token));
+  }
 
-    String refreshToken = command.getRefreshToken();
-    Exception exception = null;
-    SignOutResult result = null;
-
-    try {
-      result = tokenIssuer.revoke(refreshToken);
-    } catch (Exception e) {
-      exception = e;
-      throw e;
-    } finally {
-      signEntryRecorder.record(
-          SignEntryTypeEnum.SIGN_OUT.getCode(),
-          result != null ? result.userId() : null,
-          result != null ? result.userName() : null,
-          result != null ? result.name() : null,
-          startedOn,
-          LocalDateTime.now(),
-          System.currentTimeMillis() - startTime,
-          null,
-          refreshToken,
-          null,
-          exception == null,
-          exception != null ? exception.getMessage() : null,
-          exception != null ? exception.toString() : null);
+  /**
+   * 构造登出日志身份
+   *
+   * @param result 登出结果（失败时为 null）
+   * @param token 令牌
+   * @return 日志身份
+   */
+  private static SignEntryIdentity identity(SignOutResult result, String token) {
+    if (result != null) {
+      return new SignEntryIdentity(result.userId(), result.userName(), result.name(), token);
     }
+    return new SignEntryIdentity(null, null, null, token);
   }
 }

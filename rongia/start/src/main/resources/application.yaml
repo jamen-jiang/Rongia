@@ -94,15 +94,26 @@ mybatis-plus:
   # Mapper XML 文件位置
   mapper-locations: classpath*:/mapper/**/*.xml
 
-# JWT 配置
-jwt:
-  # 签名密钥（生产环境请使用环境变量或密钥管理服务）
-  # HS256 要求密钥长度至少 256 位（32 字节）
-  secret: rongia-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
-  # 访问令牌过期时间（毫秒），24 小时
-  access-token-expiration: 86400000
-  # 刷新令牌过期时间（毫秒），7 天
-  refresh-token-expiration: 604800000
+# Sa-Token 配置（不透明令牌，状态存 Redis，每次校验自动续期）
+sa-token:
+  # 令牌名称（同时是请求头名称）
+  token-name: Authorization
+  # 令牌前缀（前端传 Authorization: Bearer xxx）
+  token-prefix: Bearer
+  # 令牌有效期（秒），7 天
+  timeout: 604800
+  # 不启用「N 秒无操作冻结」（-1 = 永不冻结，有效期只由 timeout 控制）
+  active-timeout: -1
+  # 允许同一账号多端登录（且每次登录发独立令牌，不共享）
+  is-concurrent: true
+  is-share: false
+  # 只从请求头读令牌，不读 Cookie
+  is-read-cookie: false
+  is-read-header: true
+  # 令牌风格：UUID
+  token-style: uuid
+  # 关闭启动时的字符画 banner
+  is-print: false
 
 # SpringDoc OpenAPI 配置
 springdoc:
@@ -172,8 +183,8 @@ logging:
     com.rongia: info
     # Spring Cache：关掉 TRACE（否则会打印所有缓存操作）
     org.springframework.cache: info
-    # Spring Security：关掉 DEBUG（否则会打印每个请求的过滤器链）
-    org.springframework.security: warn
+    # Sa-Token：关掉 DEBUG（否则会打印每次鉴权细节）
+    cn.dev33: warn
     # Spring Web：关掉 DEBUG（否则会打印 DispatcherServlet 细节）
     org.springframework.web: warn
     # Flowable：平时 INFO，排查流程问题时临时改成 DEBUG

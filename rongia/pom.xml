@@ -33,7 +33,6 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <jjwt.version>0.12.6</jjwt.version>
         <lombok.version>1.18.36</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <swagger.version>2.2.55</swagger.version>
@@ -45,6 +44,7 @@
         <poi.version>5.5.1</poi.version>
         <yauaa.version>7.28.1</yauaa.version>
         <redisson.version>4.7.0</redisson.version>
+        <sa-token.version>1.46.0</sa-token.version>
         <commonsnet.version>3.13.0</commonsnet.version>
         <querydsl.version>5.1.0</querydsl.version>
     </properties>
@@ -90,22 +90,6 @@
                 <groupId>io.axoniq.framework</groupId>
                 <artifactId>axoniq-spring-boot-starter</artifactId>
                 <version>${axon.version}</version>
-            </dependency>
-            <!-- JJWT：JWT 签发与校验 -->
-            <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-api</artifactId>
-                <version>${jjwt.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-impl</artifactId>
-                <version>${jjwt.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt-jackson</artifactId>
-                <version>${jjwt.version}</version>
             </dependency>
             <!-- MyBatis 核心（Flowable 引擎内部依赖它，故排除 Flowable 自带版本后由此统一） -->
             <dependency>
@@ -157,6 +141,17 @@
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson-spring-cache</artifactId>
                 <version>${redisson.version}</version>
+            </dependency>
+            <!-- Sa-Token：登录态 / 鉴权框架（Boot 4 专属 starter + Redisson 存储） -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-spring-boot4-starter</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-redisson-spring-boot-starter</artifactId>
+                <version>${sa-token.version}</version>
             </dependency>
             <!-- Apache Commons Net：FTP / Telnet 客户端 -->
             <dependency>

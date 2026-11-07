@@ -40,8 +40,6 @@ public class AddSignInLogCommandHandler {
             command.getEndedOn(),
             command.getElapsedMilliseconds(),
             command.getToken(),
-            command.getRefreshToken(),
-            command.getOldRefreshToken(),
             command.getIp(),
             command.getCity(),
             command.getUserAgent(),

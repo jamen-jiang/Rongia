@@ -45,7 +45,7 @@ public interface CurrentUser {
    *
    * @return true 表示超级管理员
    */
-  boolean isSuperAdmin();
+  Boolean getIsSuperAdmin();
 
   /**
    * 获取菜单Id列表

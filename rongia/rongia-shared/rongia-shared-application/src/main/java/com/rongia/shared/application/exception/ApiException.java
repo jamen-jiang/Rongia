@@ -12,7 +12,7 @@ public class ApiException extends RuntimeException {
   /** 自定义错误信息 */
   private final String message;
 
-  /** 默认构造器；code 取 Fail_App */
+  /** 默认构造器；code 取 FAIL */
   public ApiException() {
     this.message = null;
   }
@@ -72,12 +72,12 @@ public class ApiException extends RuntimeException {
   }
 
   /**
-   * 获取错误代码；未设置时返回 FAIL_APP
+   * 获取错误代码；未设置时返回 FAIL
    *
    * @return 错误代码
    */
   public int getCode() {
-    return code == 0 ? ApiStatusEnum.FAIL_APP.getCode() : code;
+    return code == 0 ? ApiStatusEnum.FAIL.getCode() : code;
   }
 
   /**

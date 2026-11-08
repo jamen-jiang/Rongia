@@ -38,10 +38,7 @@ public class LoginUserService {
    */
   @Transactional(readOnly = true)
   public @NonNull LoginUser loadUserByUsername(@NonNull String userName) {
-    User model =
-        userJpa
-            .findByUserName(userName)
-            .orElseThrow(() -> new ApiException("账号或密码错误"));
+    User model = userJpa.findByUserName(userName).orElseThrow(() -> new ApiException("账号或密码错误"));
     return buildLoginUser(model);
   }
 
@@ -54,10 +51,7 @@ public class LoginUserService {
    */
   @Transactional(readOnly = true)
   public @NonNull LoginUser loadUserByUserId(@NonNull Long userId) {
-    User model =
-        userJpa
-            .findById(userId)
-            .orElseThrow(() -> new ApiException("用户不存在: " + userId));
+    User model = userJpa.findById(userId).orElseThrow(() -> new ApiException("用户不存在: " + userId));
     return buildLoginUser(model);
   }
 
@@ -74,7 +68,7 @@ public class LoginUserService {
         model.getUserName(),
         model.getPassword(),
         model.getName(),
-        null,
+        model.getMobile(),
         model.getEmail(),
         permission.superAdmin,
         permission.menuIds,

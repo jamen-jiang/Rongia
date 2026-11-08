@@ -92,7 +92,23 @@
             <artifactId>rongia-purchase-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 6. 系统管理上下文                            -->
+        <!-- 6. 人力资源上下文                              -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-hr-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-hr-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-hr-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- 7. 系统管理上下文                            -->
         <dependency>
             <groupId>com.rongia</groupId>
             <artifactId>rongia-system-application</artifactId>

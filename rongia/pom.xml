@@ -25,6 +25,7 @@
         <module>rongia-production</module>
         <module>rongia-sales</module>
         <module>rongia-purchase</module>
+        <module>rongia-hr</module>
     </modules>
 
     <properties>

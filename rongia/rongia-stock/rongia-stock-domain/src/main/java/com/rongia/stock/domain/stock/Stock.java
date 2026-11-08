@@ -15,10 +15,10 @@ import org.hibernate.annotations.Nationalized;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * 库存（一个SKU在一个库位上的在库快照）
+ * 库存（一个SKU在一个存货点上的在库快照）
  *
- * <p>一行回答的是「这个SKU，在这个库位，现在有多少」：定位键是 {@code VariantId +
- * LocationId}，数量用SKU基本单位计，不另存单位列。{@code MaterialId} 是SKU所属的SPU，只给「按系列汇总
+ * <p>一行回答的是「这个SKU，在这个存货点，现在有多少」：定位键是 {@code VariantId +
+ * WarehouseId}，数量用SKU基本单位计，不另存单位列。{@code MaterialId} 是SKU所属的SPU，只给「按系列汇总
  * 有多少货」这类查询当分组列用，不参与定位，也不是键的一部分。
  *
  * <p>两个数量各说一件事：{@code Qty} 是「架上现在有多少」，{@code ReservedQty} 是「其中已经答应给
@@ -43,7 +43,7 @@ import org.jspecify.annotations.NullMarked;
 @Table(
     name = "Stock",
     indexes = {
-      @Index(name = "IX_Stock_VariantId_LocationId", columnList = "VariantId,LocationId")
+      @Index(name = "IX_Stock_VariantId_WarehouseId", columnList = "VariantId,WarehouseId")
     })
 public class Stock extends UpdateAggregateRoot {
 
@@ -55,9 +55,9 @@ public class Stock extends UpdateAggregateRoot {
   @Column(name = "VariantId", nullable = false)
   private Long variantId;
 
-  /** 库位Id */
-  @Column(name = "LocationId", nullable = false)
-  private Long locationId;
+  /** 存货点Id（仓库叶子节点，分组节点不存货） */
+  @Column(name = "WarehouseId", nullable = false)
+  private Long warehouseId;
 
   /** 在库数量（SKU基本单位） */
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
@@ -72,22 +72,22 @@ public class Stock extends UpdateAggregateRoot {
    *
    * @param materialId SKU所属SPU（汇总维度）
    * @param variantId SKU
-   * @param locationId 库位Id
-   * @throws DomainException SPU或SKU或库位不合法时抛出
+   * @param warehouseId 存货点Id（仓库叶子节点）
+   * @throws DomainException SPU或SKU或存货点不合法时抛出
    */
-  Stock(long materialId, long variantId, long locationId) {
+  Stock(long materialId, long variantId, long warehouseId) {
     if (materialId <= 0) {
       throw new DomainException("SPU不能为空");
     }
     if (variantId <= 0) {
       throw new DomainException("SKU不能为空");
     }
-    if (locationId <= 0) {
-      throw new DomainException("库位不能为空");
+    if (warehouseId <= 0) {
+      throw new DomainException("仓库不能为空");
     }
     this.materialId = materialId;
     this.variantId = variantId;
-    this.locationId = locationId;
+    this.warehouseId = warehouseId;
     this.qty = BigDecimal.ZERO;
     this.reservedQty = BigDecimal.ZERO;
   }
@@ -158,7 +158,7 @@ public class Stock extends UpdateAggregateRoot {
   /**
    * 可用量：在库数量减预留数量
    *
-   * <p>这是「还能被预留或领走」的量。要知道全仓能动多少，就按仓库把各库位的行加起来。
+   * <p>这是「还能被预留或领走」的量。要知道全仓能动多少，就按仓库节点把子树各存货点的行加起来。
    *
    * @return 还能被预留或领用的数量
    */

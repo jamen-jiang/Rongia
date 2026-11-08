@@ -16,9 +16,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * 库存单据领域服务
  *
- * <p>类型有两条路，各只有一处来源：程序自动开单按行上的库位推编码（出库库位+入库库位都填是调拨、只填出库库位是
- * 出库、只填入库库位是入库），推出来直接落在单头上，不查类型表——方向本来就是行形状说出来的；手工开单反过来，
- * 人挑一个类型编码传进来，查类型表确认它存在、没停用，再按它表上的方向检查行的库位填法。
+ * <p>类型有两条路，各只有一处来源：程序自动开单按行上的仓库推编码（出库仓库+入库仓库都填是调拨、只填出库仓库是
+ * 出库、只填入库仓库是入库），推出来直接落在单头上，不查类型表——方向本来就是行形状说出来的；手工开单反过来，
+ * 人挑一个类型编码传进来，查类型表确认它存在、没停用，再按它表上的方向检查行的仓库填法。
  *
  * <p>来源单据可空——系统照业务单生成的单子带来源，车间手工开的单不填。红冲是唯一能凭空开出一张单据的动作，
  * 而它也只能照着已完成的原单开——挑原单上的行，照它的位置，数量取负，类型照抄原单，冲多少由开单的人定。
@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  * 单据自己那半落定。红字单也一样，开出来先是草稿：过不过得去账取决于库里还有没有货，过不去就让它停在草稿挂着，
  * 等人先去处理下游那张单。
  *
- * <p>库位一律必填其一：出库库位或入库库位至少一个，方向由「填了哪一端」决定。红字单照抄原单的库位，不受这条影响。
+ * <p>仓库一律必填其一：出库仓库或入库仓库至少一个，方向由「填了哪一端」决定。红字单照抄原单的仓库，不受这条影响。
  */
 @NullMarked
 public class StockEntryDomainService {
@@ -58,12 +58,12 @@ public class StockEntryDomainService {
    * @param remark 备注（可空）
    * @param lines 库存单据行数据
    * @return 库存单据聚合
-   * @throws DomainException 行集为空、类型行缺失或已停用、或库位形状与类型方向不符时抛出
+   * @throws DomainException 行集为空、类型行缺失或已停用、或仓库形状与类型方向不符时抛出
    */
   public StockEntry create(
       String typeCode, @Nullable String remark, List<StockEntryLineData> lines) {
     if (lines.isEmpty()) {
-      throw new DomainException("库存单据得有行：说清哪个SKU从哪个库位到哪个库位");
+      throw new DomainException("库存单据得有行：说清哪个SKU从哪个存货点到哪个存货点");
     }
     StockEntryType type = getUsableType(typeCode);
     validateLineShape(type.getDirection(), lines);
@@ -75,7 +75,7 @@ public class StockEntryDomainService {
    *
    * <p>单号不接入参：由 OrderAddedEvent 的监听器按流水号规则分配。
    *
-   * <p>{@code sourceType} 与来源单据号是程序这条路的入口：编码按行上的库位与来源推，推出来只可能是那七个
+   * <p>{@code sourceType} 与来源单据号是程序这条路的入口：编码按行上的仓库与来源推，推出来只可能是那七个
    * 标准编码，方向由行的形状决定，不查类型表。手工开单走另一条重载，类型由人挑。
    *
    * @param sourceType 来源单据类型编码，取值见 {@link SerialNumberTypeEnum}
@@ -93,7 +93,7 @@ public class StockEntryDomainService {
       @Nullable String remark,
       List<StockEntryLineData> lines) {
     if (lines.isEmpty()) {
-      throw new DomainException("库存单据得有行：说清哪个SKU从哪个库位到哪个库位");
+      throw new DomainException("库存单据得有行：说清哪个SKU从哪个存货点到哪个存货点");
     }
     return build(
         resolveCode(lines, sourceType), sourceType, sourceId, sourceNumber, remark, lines);
@@ -126,8 +126,8 @@ public class StockEntryDomainService {
           data.materialId(),
           data.variantId(),
           data.qty(),
-          data.outboundLocationId(),
-          data.inboundLocationId(),
+          data.outboundWarehouseId(),
+          data.inboundWarehouseId(),
           data.sourceLineId(),
           null,
           data.remark());
@@ -172,7 +172,7 @@ public class StockEntryDomainService {
    *
    * <p>护栏只有一条：同一位置累计冲掉的不超过原单当初记的量。算「已冲多少」时，已经开出来的红字单都算数
    * （草稿也算——草稿虽然还没搬货，可它已经把这部分额度占住了）；不占的话两张草稿各冲满额，过账时
-   * 谁也拦不住——库位里别的批次有货，第二张会去偷别人的账。
+   * 谁也拦不住——别的存货点有货，第二张会去偷别人的账。
    *
    * <p>红字单本身不能再红冲：它当初就是往回冲的，要纠正它得另开一张正向单。
    *
@@ -224,8 +224,8 @@ public class StockEntryDomainService {
           data.materialId(),
           data.variantId(),
           data.qty().negate(),
-          data.outboundLocationId(),
-          data.inboundLocationId(),
+          data.outboundWarehouseId(),
+          data.inboundWarehouseId(),
           originLine.getSourceLineId(),
           originLine.getId(),
           data.remark());
@@ -236,9 +236,9 @@ public class StockEntryDomainService {
   // ==================== 私有 ====================
 
   /**
-   * 按行上的库位与来源推单据类型编码
+   * 按行上的仓库与来源推单据类型编码
    *
-   * <p>规则照 ERPNext 的 {@code make_stock_entry}：出库库位与入库库位都填是调拨；只填一端时再看来源——
+   * <p>规则照 ERPNext 的 {@code make_stock_entry}：出库仓库与入库仓库都填是调拨；只填一端时再看来源——
    * 出库是销售单就是销售出库、是采购单就是采购退货、否则是领料出库；入库是销售单就是销售退货、是工单就是完工入库、
    * 否则是采购入库。一张单里各行推出的编码必须一致——既出又入的单要拆成两张开，混在一张里归堆和红冲都说不清。
    *
@@ -260,20 +260,20 @@ public class StockEntryDomainService {
   }
 
   /**
-   * 按一行的库位与来源推这条行的编码
+   * 按一行的仓库与来源推这条行的编码
    *
-   * <p>只填一端时，出库与入库都要看来源：同样是「只有出库库位」，来源是销售单是销售出库、是采购单是采购退货、
-   * 其余是领料出库；同样是「只有入库库位」，来源是销售单是销售退货、是工单是完工入库、其余是采购入库。
+   * <p>只填一端时，出库与入库都要看来源：同样是「只有出库仓库」，来源是销售单是销售出库、是采购单是采购退货、
+   * 其余是领料出库；同样是「只有入库仓库」，来源是销售单是销售退货、是工单是完工入库、其余是采购入库。
    *
    * @param data 库存单据行数据
    * @param sourceType 来源单据类型编码
    * @return 该行对应的类型编码
    */
   private String resolveLineCode(StockEntryLineData data, String sourceType) {
-    if (data.outboundLocationId() != null && data.inboundLocationId() != null) {
+    if (data.outboundWarehouseId() != null && data.inboundWarehouseId() != null) {
       return StockEntryTypeEnum.TRANSFER.getCode();
     }
-    if (data.outboundLocationId() != null) {
+    if (data.outboundWarehouseId() != null) {
       if (SerialNumberTypeEnum.SALES_ORDER.getCode().equals(sourceType)) {
         return StockEntryTypeEnum.SALES_DELIVERY.getCode();
       }
@@ -311,29 +311,29 @@ public class StockEntryDomainService {
   }
 
   /**
-   * 按类型校验每一行的库位形状
+   * 按类型校验每一行的仓库形状
    *
-   * <p>方向决定哪些库位必须有：出库只要出库库位、入库只要入库库位。方向属于整张单，一张单要么都入、
+   * <p>方向决定哪些仓库必须有：出库只要出库仓库、入库只要入库仓库。方向属于整张单，一张单要么都入、
    * 要么都出。校验只看方向、不看类型叫什么名字——用户自建的类型只要选了方向，规则自动生效。
    *
    * @param direction 方向编码
    * @param lines 库存单据行数据
-   * @throws DomainException 行的库位形状与方向不符时抛出
+   * @throws DomainException 行的仓库形状与方向不符时抛出
    */
   private void validateLineShape(String direction, List<StockEntryLineData> lines) {
     for (StockEntryLineData data : lines) {
-      boolean hasOutbound = data.outboundLocationId() != null;
-      boolean hasInbound = data.inboundLocationId() != null;
+      boolean hasOutbound = data.outboundWarehouseId() != null;
+      boolean hasInbound = data.inboundWarehouseId() != null;
       if (hasOutbound && hasInbound) {
-        throw new DomainException("不能同时填出库库位与入库库位，调拨请开调拨单");
+        throw new DomainException("不能同时填出库仓库与入库仓库，调拨请开调拨单");
       }
       if (StockEntryDirectionEnum.OUT.getCode().equals(direction)) {
         if (!hasOutbound) {
-          throw new DomainException("出库的行必须填出库库位");
+          throw new DomainException("出库的行必须填出库仓库");
         }
       } else if (StockEntryDirectionEnum.IN.getCode().equals(direction)) {
         if (!hasInbound) {
-          throw new DomainException("入库的行必须填入库库位");
+          throw new DomainException("入库的行必须填入库仓库");
         }
       }
     }
@@ -350,14 +350,14 @@ public class StockEntryDomainService {
   private StockEntryLine getOriginLine(StockEntry origin, StockEntryLineData data) {
     for (StockEntryLine line : origin.getStockEntryLines()) {
       if (isSamePosition(
-          line, data.variantId(), data.outboundLocationId(), data.inboundLocationId())) {
+          line, data.variantId(), data.outboundWarehouseId(), data.inboundWarehouseId())) {
         return line;
       }
     }
     throw new DomainException(
         "原单上没有物料"
             + data.variantId()
-            + "在这对库位之间的这一行，冲不了");
+            + "在这对仓库之间的这一行，冲不了");
   }
 
   /**
@@ -403,22 +403,22 @@ public class StockEntryDomainService {
   }
 
   /**
-   * 比位置：物料、出库库位、入库库位三项都对上，才算同一行
+   * 比位置：物料、出库仓库、入库仓库三项都对上，才算同一行
    *
    * @param line 待比的行
    * @param variantId 物料SKU
-   * @param outboundLocationId 出库库位Id（可空）
-   * @param inboundLocationId 入库库位Id（可空）
+   * @param outboundWarehouseId 出库仓库Id（可空）
+   * @param inboundWarehouseId 入库仓库Id（可空）
    * @return true 表示同一位置
    */
   private boolean isSamePosition(
       StockEntryLine line,
       long variantId,
-      @Nullable Long outboundLocationId,
-      @Nullable Long inboundLocationId) {
+      @Nullable Long outboundWarehouseId,
+      @Nullable Long inboundWarehouseId) {
     return Objects.equals(line.getVariantId(), variantId)
-        && Objects.equals(line.getOutboundLocationId(), outboundLocationId)
-        && Objects.equals(line.getInboundLocationId(), inboundLocationId);
+        && Objects.equals(line.getOutboundWarehouseId(), outboundWarehouseId)
+        && Objects.equals(line.getInboundWarehouseId(), inboundWarehouseId);
   }
 
   /**

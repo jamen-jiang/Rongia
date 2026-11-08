@@ -2,7 +2,6 @@ package com.rongia.shared.infrastructure.core.lock;
 
 import com.rongia.shared.application.port.lock.DistributedLockExecutor;
 import com.rongia.shared.application.port.lock.DistributedLockHandle;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -141,7 +140,7 @@ public class DistributedLockExecutorImpl implements DistributedLockExecutor {
   // ==================== 私有 ====================
 
   /**
-   * 抢 Redisson 锁（不等待，-1 走看门狗自动续期）
+   * 抢 Redisson 锁（一直等到拿到锁才继续，看门狗自动续期）
    *
    * @param key 锁 key
    * @return Redisson 锁对象
@@ -149,9 +148,7 @@ public class DistributedLockExecutorImpl implements DistributedLockExecutor {
   private RLock acquireRedisson(String key) {
     RLock lock = redissonClient.getLock(key);
     try {
-      if (!lock.tryLock(0, -1, TimeUnit.SECONDS)) {
-        throw new IllegalStateException("获取分布式锁失败：" + key);
-      }
+      lock.lockInterruptibly();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("获取分布式锁被中断：" + key, e);

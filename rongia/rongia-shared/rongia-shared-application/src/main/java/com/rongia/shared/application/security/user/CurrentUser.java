@@ -31,7 +31,7 @@ public interface CurrentUser {
    *
    * @return 手机号
    */
-  String getMobilePhone();
+  String getMobile();
 
   /**
    * 获取邮箱

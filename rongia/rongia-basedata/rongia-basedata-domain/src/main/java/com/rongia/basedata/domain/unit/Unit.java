@@ -48,9 +48,6 @@ import org.jspecify.annotations.Nullable;
     })
 public class Unit extends UpdateAggregateRoot implements Parent {
 
-  /** 中间计算保留的小数位 */
-  private static final int CALC_SCALE = 12;
-
   /** 落数前归一「数量 ÷ 步长」的小数位，用来吃掉换算率的末位误差 */
   private static final int SNAP_SCALE = 6;
 

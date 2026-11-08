@@ -62,6 +62,10 @@ public class Category extends UpdateAggregateRoot implements Parent {
   @Nullable
   private String parentPath;
 
+  /** 是否末级：末级分类才能挂物料，非末级只用于往下套子分类 */
+  @Column(name = "IsLeaf", nullable = false)
+  private Boolean isLeaf = true;
+
   /** 分类代码 */
   @Nationalized
   @Column(name = "Code", nullable = false, length = 100)
@@ -71,10 +75,6 @@ public class Category extends UpdateAggregateRoot implements Parent {
   @Nationalized
   @Column(name = "Name", nullable = false, length = 200)
   private String name;
-
-  /** 是否末级：末级分类才能挂物料，非末级只用于往下套子分类 */
-  @Column(name = "IsLeaf", nullable = false)
-  private Boolean isLeaf = true;
 
   /** 排序（可空） */
   @Column(name = "Sequence")

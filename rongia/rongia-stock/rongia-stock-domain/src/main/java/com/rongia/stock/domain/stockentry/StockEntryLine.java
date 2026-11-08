@@ -18,9 +18,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * 库存单据行
  *
- * <p>一行说的是「哪个 SKU、多少，从哪个库位流到哪个库位」：出库库位是货离开的库位，入库库位是货到达的库位。单子上没有
- * 「入库」「出库」这一说——出库库位填了就在出库库位扣，入库库位填了就往入库库位加（ERPNext 的过账口径：出库库位减、入库库位加），
- * 领料只填出库库位、完工入库只填入库库位、调拨两个都填，方向是填库位填出来的结果。两个库位至少填一个：都不填等于货没
+ * <p>一行说的是「哪个 SKU、多少，从哪个存货点流到哪个存货点」：出库仓库是货离开的存货点，入库仓库是货到达的存货点。单子上没有
+ * 「入库」「出库」这一说——出库仓库填了就在出库仓库扣，入库仓库填了就往入库仓库加（ERPNext 的过账口径：出库仓库减、入库仓库加），
+ * 领料只填出库仓库、完工入库只填入库仓库、调拨两个都填，方向是填仓库填出来的结果。两个仓库至少填一个：都不填等于货没
  * 地方来也没地方去。SPU 只作快照，给按系列汇总和打印用。单位不抄——数量按 SKU 基本单位计这一条
  * {@code Stock} 已经定了，再抄一份单位就多一个说法。
  *
@@ -59,15 +59,15 @@ public class StockEntryLine extends BaseDeleteEntity {
   @Column(name = "Qty", nullable = false, precision = 18, scale = 2)
   private BigDecimal qty;
 
-  /** 出库库位Id（可空，货从这里离开；与入库库位至少填一个） */
-  @Column(name = "OutboundLocationId")
+  /** 出库仓库Id（可空，货从这里离开；与入库仓库至少填一个） */
+  @Column(name = "OutboundWarehouseId")
   @Nullable
-  private Long outboundLocationId;
+  private Long outboundWarehouseId;
 
-  /** 入库库位Id（可空，货往这里到达；与出库库位至少填一个） */
-  @Column(name = "InboundLocationId")
+  /** 入库仓库Id（可空，货往这里到达；与出库仓库至少填一个） */
+  @Column(name = "InboundWarehouseId")
   @Nullable
-  private Long inboundLocationId;
+  private Long inboundWarehouseId;
 
   /** 来源单据行Id（可空，指回业务单上的那一行：工单用料行、销售单行、采购单行） */
   @Column(name = "SourceLineId")
@@ -91,19 +91,19 @@ public class StockEntryLine extends BaseDeleteEntity {
    * @param materialId 物料SPU（快照）
    * @param variantId 物料SKU
    * @param qty 数量（红字行为负）
-   * @param outboundLocationId 出库库位Id（可空）
-   * @param inboundLocationId 入库库位Id（可空）
+   * @param outboundWarehouseId 出库仓库Id（可空）
+   * @param inboundWarehouseId 入库仓库Id（可空）
    * @param sourceLineId 来源单据行Id（可空）
    * @param reversalOfStockEntryLineId 被冲的原行Id（可空，普通行为 null）
    * @param remark 备注（可空）
-   * @throws DomainException SPU、SKU非法，数量为零，出库库位与入库库位全空或相同，或原行Id有误时抛出
+   * @throws DomainException SPU、SKU非法，数量为零，出库仓库与入库仓库全空或相同，或原行Id有误时抛出
    */
   StockEntryLine(
       long materialId,
       long variantId,
       BigDecimal qty,
-      @Nullable Long outboundLocationId,
-      @Nullable Long inboundLocationId,
+      @Nullable Long outboundWarehouseId,
+      @Nullable Long inboundWarehouseId,
       @Nullable Long sourceLineId,
       @Nullable Long reversalOfStockEntryLineId,
       @Nullable String remark) {
@@ -116,17 +116,17 @@ public class StockEntryLine extends BaseDeleteEntity {
     if (qty.signum() == 0) {
       throw new DomainException("数量不能为零");
     }
-    if (outboundLocationId != null && outboundLocationId <= 0) {
-      throw new DomainException("出库库位Id有误!");
+    if (outboundWarehouseId != null && outboundWarehouseId <= 0) {
+      throw new DomainException("出库仓库Id有误!");
     }
-    if (inboundLocationId != null && inboundLocationId <= 0) {
-      throw new DomainException("入库库位Id有误!");
+    if (inboundWarehouseId != null && inboundWarehouseId <= 0) {
+      throw new DomainException("入库仓库Id有误!");
     }
-    if (outboundLocationId == null && inboundLocationId == null) {
-      throw new DomainException("出库库位与入库库位至少填一个");
+    if (outboundWarehouseId == null && inboundWarehouseId == null) {
+      throw new DomainException("出库仓库与入库仓库至少填一个");
     }
-    if (outboundLocationId != null && outboundLocationId.equals(inboundLocationId)) {
-      throw new DomainException("出库库位与入库库位不能相同");
+    if (outboundWarehouseId != null && outboundWarehouseId.equals(inboundWarehouseId)) {
+      throw new DomainException("出库仓库与入库仓库不能相同");
     }
     if (reversalOfStockEntryLineId != null && reversalOfStockEntryLineId <= 0) {
       throw new DomainException("红字行要指回被冲的原行!");
@@ -137,8 +137,8 @@ public class StockEntryLine extends BaseDeleteEntity {
     this.materialId = materialId;
     this.variantId = variantId;
     this.qty = qty;
-    this.outboundLocationId = outboundLocationId;
-    this.inboundLocationId = inboundLocationId;
+    this.outboundWarehouseId = outboundWarehouseId;
+    this.inboundWarehouseId = inboundWarehouseId;
     this.sourceLineId = sourceLineId;
     this.reversalOfStockEntryLineId = reversalOfStockEntryLineId;
     this.remark = remark;

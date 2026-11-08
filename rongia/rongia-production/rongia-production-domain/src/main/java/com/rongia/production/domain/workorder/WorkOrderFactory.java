@@ -36,7 +36,7 @@ public class WorkOrderFactory {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
 
    * @param remark 备注（可空）
    * @param number 工单号（传空串表示由 OrderAddedEvent 的监听器分配）
@@ -55,7 +55,7 @@ public class WorkOrderFactory {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark,
       String number) {
     // 单号非空时才校验唯一，空串代表尚未分配
@@ -74,7 +74,7 @@ public class WorkOrderFactory {
         startTime,
         qty,
         unitId,
-        locationId,
+        warehouseId,
         remark,
         number);
   }

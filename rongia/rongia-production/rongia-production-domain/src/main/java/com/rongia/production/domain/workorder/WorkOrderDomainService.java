@@ -93,7 +93,7 @@ public class WorkOrderDomainService {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
    * @param remark 备注（可空）
    * @return 工单聚合
    */
@@ -109,7 +109,7 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark) {
     // 传空串：单号交给 OrderAddedEvent 的监听器分配
     return workOrderFactory.create(
@@ -124,7 +124,7 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        locationId,
+        warehouseId,
         remark,
         "");
   }
@@ -144,7 +144,7 @@ public class WorkOrderDomainService {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
    * @param remark 备注（可空）
    * @return 工单聚合
    * @throws DomainException 工单不存在、非草稿状态时抛出
@@ -162,7 +162,7 @@ public class WorkOrderDomainService {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark) {
     WorkOrder model = getExist(id);
     model.modify(
@@ -177,7 +177,7 @@ public class WorkOrderDomainService {
         startTime,
         qty,
         unitId,
-        locationId,
+        warehouseId,
         remark);
     return model;
   }

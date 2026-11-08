@@ -33,7 +33,7 @@ public class LoginUser implements Serializable {
   private String name;
 
   /** 手机号（可空） */
-  private String mobilePhone;
+  private String mobile;
 
   /** 邮箱（可空） */
   private String email;
@@ -77,7 +77,7 @@ public class LoginUser implements Serializable {
       String userName,
       String password,
       String name,
-      String mobilePhone,
+      String mobile,
       String email,
       Boolean isSuperAdmin,
       Set<Long> menuIds,
@@ -89,7 +89,7 @@ public class LoginUser implements Serializable {
     this.userName = userName;
     this.password = password;
     this.name = name;
-    this.mobilePhone = mobilePhone;
+    this.mobile = mobile;
     this.email = email;
     this.isSuperAdmin = isSuperAdmin;
     this.menuIds = menuIds == null ? Set.of() : menuIds;

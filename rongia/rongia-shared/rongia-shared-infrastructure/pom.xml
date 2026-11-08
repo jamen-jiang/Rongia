@@ -86,7 +86,7 @@
             <groupId>cn.dev33</groupId>
             <artifactId>sa-token-redisson-spring-boot-starter</artifactId>
         </dependency>
-        <!-- 密码加密：仅用 BCrypt（CompatiblePasswordEncoder），不引入 Spring Security 过滤链 -->
+        <!-- 密码加密：仅用 BCrypt（BCryptPasswordEncoder，业务侧直接内联），不引入 Spring Security 过滤链 -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>

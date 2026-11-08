@@ -45,8 +45,8 @@ public class CurrentUserImpl implements CurrentUser {
    * @return 手机号
    */
   @Override
-  public String getMobilePhone() {
-    return loginUser().getMobilePhone();
+  public String getMobile() {
+    return loginUser().getMobile();
   }
 
   /**

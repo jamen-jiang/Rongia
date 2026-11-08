@@ -18,10 +18,10 @@ import org.jspecify.annotations.NullMarked;
 @Getter
 public enum StockEntryDirectionEnum implements BaseEnum {
 
-  /** 入库：只填入库库位，货进入仓库 */
+  /** 入库：只填入库仓库，货进入仓库 */
   IN("In", "入库"),
 
-  /** 出库：只填出库库位，货离开仓库 */
+  /** 出库：只填出库仓库，货离开仓库 */
   OUT("Out", "出库");
 
   /** 编码 */

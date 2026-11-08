@@ -9,12 +9,12 @@ import org.jspecify.annotations.Nullable;
 public interface StockRepository extends Repository<Stock> {
 
   /**
-   * 按「SKU + 库位」取库存行
+   * 按「SKU + 存货点」取库存行
    *
    * @param variantId SKU
-   * @param locationId 库位Id
+   * @param warehouseId 存货点Id（仓库叶子节点）
    * @return 库存行（可空），该键还没有记录时返回 null
    */
   @Nullable
-  Stock getByKey(long variantId, long locationId);
+  Stock getByKey(long variantId, long warehouseId);
 }

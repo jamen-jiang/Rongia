@@ -29,7 +29,7 @@
 
     <!-- 4. 自定义 SQL Server Appender -->
     <appender name="SQLSERVER_DB"
-              class="com.rongia.infrastructure.core.logging.SqlServerLogAppender">
+              class="com.rongia.logging.SqlServerLogAppender">
         <url>${DB_URL}</url>
         <user>${DB_USER}</user>
         <password>${DB_PASS}</password>
@@ -49,7 +49,6 @@
 
     <!-- 5.1 Spring 框架：只记 WARN+ -->
     <logger name="org.springframework" level="WARN"/>
-    <logger name="org.springframework.security" level="WARN"/>
     <logger name="org.springframework.web" level="WARN"/>
     <logger name="org.springframework.web.servlet" level="WARN"/>
     <logger name="org.springframework.web.socket" level="WARN"/>

@@ -113,9 +113,9 @@ public class WorkOrder extends OrderAggregateRoot {
   @Column(name = "UnitId", nullable = false)
   private Long unitId;
 
-  /** 收货库位Id（必填）：完工的产品进这里 */
-  @Column(name = "LocationId", nullable = false)
-  private Long locationId;
+  /** 收货仓库Id（必填）：完工的产品进这里 */
+  @Column(name = "WarehouseId", nullable = false)
+  private Long warehouseId;
 
   /** 状态编码，取值见 {@link WorkOrderStatusEnum} */
   @Nationalized
@@ -160,7 +160,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
    * @param remark 备注（可空）
    * @param number 单号（传空串表示由 OrderAddedEvent 的监听器后续分配）
    */
@@ -176,7 +176,7 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark,
       String number) {
     super(number);
@@ -192,7 +192,7 @@ public class WorkOrder extends OrderAggregateRoot {
         startTime,
         qty,
         unitId,
-        locationId,
+        warehouseId,
         remark);
     this.status = WorkOrderStatusEnum.DRAFT.getCode();
   }
@@ -266,7 +266,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
    * @param remark 备注（可空）
    * @throws DomainException 非草稿状态时抛出
    */
@@ -282,7 +282,7 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark) {
     if (!isDraft()) {
       throw new DomainException("工单已下达，不能再修改");
@@ -299,7 +299,7 @@ public class WorkOrder extends OrderAggregateRoot {
         startTime,
         qty,
         unitId,
-        locationId,
+        warehouseId,
         remark);
   }
 
@@ -716,7 +716,7 @@ public class WorkOrder extends OrderAggregateRoot {
    * @param startTime 开工时间（可空，不传默认当前时间）
    * @param qty 计划数量
    * @param unitId 单位Id
-   * @param locationId 收货库位Id
+   * @param warehouseId 收货仓库Id
    * @param remark 备注（可空）
    * @throws DomainException SPU、SKU、数量、单位、来源类型非法，或开工时间晚于交期时抛出
    */
@@ -732,7 +732,7 @@ public class WorkOrder extends OrderAggregateRoot {
       @Nullable LocalDateTime startTime,
       BigDecimal qty,
       long unitId,
-      long locationId,
+      long warehouseId,
       @Nullable String remark) {
     if (materialId <= 0) {
       throw new DomainException("产出SPU不能为空");
@@ -769,10 +769,10 @@ public class WorkOrder extends OrderAggregateRoot {
     this.deliveryTime = deliveryTime;
     // 不传就默认现在：开工时间必填（照 Odoo 的 date_start default now），排产时再精修
     this.startTime = startTime != null ? startTime : LocalDateTime.now();
-    if (locationId <= 0) {
-      throw new DomainException("收货库位不能为空");
+    if (warehouseId <= 0) {
+      throw new DomainException("收货仓库不能为空");
     }
-    this.locationId = locationId;
+    this.warehouseId = warehouseId;
     this.remark = remark;
   }
 

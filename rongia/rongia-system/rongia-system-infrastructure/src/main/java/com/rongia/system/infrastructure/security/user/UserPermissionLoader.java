@@ -1,16 +1,16 @@
 package com.rongia.system.infrastructure.security.user;
 
+import com.rongia.hr.domain.employee.Employee;
+import com.rongia.hr.domain.employee.EmployeeRepository;
 import com.rongia.system.domain.menu.Menu;
 import com.rongia.system.domain.menu.MenuTypeEnum;
 import com.rongia.system.domain.department.Department;
-import com.rongia.system.domain.employee.Employee;
 import com.rongia.system.domain.position.Position;
 import com.rongia.system.domain.privilege.Privilege;
 import com.rongia.system.domain.user.User;
 import com.rongia.system.domain.user.UserRole;
 import com.rongia.system.infrastructure.menu.MenuJpa;
 import com.rongia.system.infrastructure.department.DepartmentJpa;
-import com.rongia.system.infrastructure.employee.EmployeeJpa;
 import com.rongia.system.infrastructure.position.PositionJpa;
 import com.rongia.system.infrastructure.privilege.PrivilegeJpa;
 import com.rongia.system.infrastructure.user.UserJpa;
@@ -53,8 +53,8 @@ public class UserPermissionLoader {
   /** 部门 JPA */
   private final DepartmentJpa departmentJpa;
 
-  /** 员工 JPA */
-  private final EmployeeJpa employeeJpa;
+  /** 员工仓储（hr 上下文，登录算数据范围用） */
+  private final EmployeeRepository employeeRepository;
 
   /** 权限 JPA */
   private final PrivilegeJpa privilegeJpa;
@@ -67,19 +67,19 @@ public class UserPermissionLoader {
    *
    * @param positionJpa 岗位 JPA
    * @param departmentJpa 部门 JPA
-   * @param employeeJpa 员工 JPA
+   * @param employeeRepository 员工仓储
    * @param privilegeJpa 权限 JPA
    * @param menuJpa 应用 JPA
    */
   public UserPermissionLoader(
       PositionJpa positionJpa,
       DepartmentJpa departmentJpa,
-      EmployeeJpa employeeJpa,
+      EmployeeRepository employeeRepository,
       PrivilegeJpa privilegeJpa,
       MenuJpa menuJpa) {
     this.positionJpa = positionJpa;
     this.departmentJpa = departmentJpa;
-    this.employeeJpa = employeeJpa;
+    this.employeeRepository = employeeRepository;
     this.privilegeJpa = privilegeJpa;
     this.menuJpa = menuJpa;
   }
@@ -99,7 +99,7 @@ public class UserPermissionLoader {
         model.getUserRoles().stream().map(UserRole::getRoleId).collect(Collectors.toSet());
 
     // 2. 用户 → 员工 → 岗位（岗位是员工上的一列，可为空）
-    List<Employee> employees = employeeJpa.findByUserId(model.getId());
+    List<Employee> employees = employeeRepository.getListByUserId(model.getId());
     Set<Long> userPositionIds =
         employees.stream()
             .map(Employee::getPositionId)

@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * 库存单据（一次库存动账）
  *
  * <p>领料、完工入库、调拨、报废——仓里发生的每一种动作都是这一张单：开单时从头上的「单据类型」里挑一个种类
- * （类型编码按行上的库位自动推出来，类型行在 {@code StockEntryType} 表里），行上填哪个 SKU、从哪个库位到哪个库位，过账后库位上的数就变了。
+ * （类型编码按行上的仓库自动推出来，类型行在 {@code StockEntryType} 表里），行上填哪个 SKU、从哪个存货点到哪个存货点，过账后存货点上的数就变了。
  * 类型做成配置表而不是把业务各建一张单，加一种「报废出库」是运行时多一行配置的事，表结构和代码都不用动
  * （ERPNext 的 {@code Stock Entry} + {@code Stock Entry Type} 就是这个形状）。
  *
@@ -47,7 +47,7 @@ import org.jspecify.annotations.Nullable;
  * 原单上同一位置累计不超过它当初记的量。只有还没过账的草稿才配取消：它一分货没动，没有要冲的东西。
  *
  * <p>库存加减不在这里：过账这一步的入库、出库由应用层调 {@code StockDomainService} 按行执行，本聚合只保证
- * 这张单自身说得清。红字单过不去账（比如成品库位不够）就停在草稿挂着，等人先处理下游那张单。
+ * 这张单自身说得清。红字单过不去账（比如成品仓不够）就停在草稿挂着，等人先处理下游那张单。
  */
 @NullMarked
 @Getter
@@ -173,8 +173,8 @@ public class StockEntry extends OrderAggregateRoot {
    * @param materialId 物料SPU（快照）
    * @param variantId 物料SKU
    * @param qty 数量（普通单为正，红字单为负）
-   * @param outboundLocationId 出库库位Id（可空，与入库库位至少填一个）
-   * @param inboundLocationId 入库库位Id（可空，与出库库位至少填一个）
+   * @param outboundWarehouseId 出库仓库Id（可空，与入库仓库至少填一个）
+   * @param inboundWarehouseId 入库仓库Id（可空，与出库仓库至少填一个）
    * @param sourceLineId 来源单据行Id（可空，指回业务单上的那一行）
    * @param reversalOfStockEntryLineId 被冲的原行Id（可空，红字行必填、普通行传 null）
    * @param remark 备注（可空）
@@ -184,8 +184,8 @@ public class StockEntry extends OrderAggregateRoot {
       long materialId,
       long variantId,
       BigDecimal qty,
-      @Nullable Long outboundLocationId,
-      @Nullable Long inboundLocationId,
+      @Nullable Long outboundWarehouseId,
+      @Nullable Long inboundWarehouseId,
       @Nullable Long sourceLineId,
       @Nullable Long reversalOfStockEntryLineId,
       @Nullable String remark) {
@@ -202,16 +202,16 @@ public class StockEntry extends OrderAggregateRoot {
     if (this.reversalOfStockEntryId == null && reversalOfStockEntryLineId != null) {
       throw new DomainException("普通单据的行不该指回原行，只有红字行才指");
     }
-    if (findLine(variantId, outboundLocationId, inboundLocationId) != null) {
-      throw new DomainException("物料" + variantId + "在同一对库位之间已在本单中!");
+    if (findLine(variantId, outboundWarehouseId, inboundWarehouseId) != null) {
+      throw new DomainException("物料" + variantId + "在同一对仓库之间已在本单中!");
     }
     stockEntryLines.add(
         new StockEntryLine(
             materialId,
             variantId,
             qty,
-            outboundLocationId,
-            inboundLocationId,
+            outboundWarehouseId,
+            inboundWarehouseId,
             sourceLineId,
             reversalOfStockEntryLineId,
             remark));
@@ -334,24 +334,24 @@ public class StockEntry extends OrderAggregateRoot {
   }
 
   /**
-   * 按「SKU + 出库库位 + 入库库位」查找未删除的行
+   * 按「SKU + 出库仓库 + 入库仓库」查找未删除的行
    *
-   * <p>同一张单里重复记同一对库位之间的同一次流转，等于把一笔账记两遍，过账时库存会多走一遍。
+   * <p>同一张单里重复记同一对存货点之间的同一次流转，等于把一笔账记两遍，过账时库存会多走一遍。
    *
    * @param variantId 物料SKU
-   * @param outboundLocationId 出库库位Id（可空）
-   * @param inboundLocationId 入库库位Id（可空）
+   * @param outboundWarehouseId 出库仓库Id（可空）
+   * @param inboundWarehouseId 入库仓库Id（可空）
    * @return 匹配到的行，找不到返回 {@code null}
    */
   @Nullable
   private StockEntryLine findLine(
-      long variantId, @Nullable Long outboundLocationId, @Nullable Long inboundLocationId) {
+      long variantId, @Nullable Long outboundWarehouseId, @Nullable Long inboundWarehouseId) {
     return stockEntryLines.stream()
         .filter(
             l ->
                 Objects.equals(l.getVariantId(), variantId)
-                    && Objects.equals(l.getOutboundLocationId(), outboundLocationId)
-                    && Objects.equals(l.getInboundLocationId(), inboundLocationId))
+                    && Objects.equals(l.getOutboundWarehouseId(), outboundWarehouseId)
+                    && Objects.equals(l.getInboundWarehouseId(), inboundWarehouseId))
         .findFirst()
         .orElse(null);
   }

@@ -3,7 +3,6 @@ package com.rongia.system.infrastructure.security.token;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import com.rongia.shared.application.exception.ApiException;
-import com.rongia.shared.infrastructure.security.CompatiblePasswordEncoder;
 import com.rongia.shared.infrastructure.security.user.LoginUser;
 import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
 import com.rongia.system.application.security.token.IssuedToken;
@@ -13,6 +12,7 @@ import com.rongia.system.infrastructure.security.user.LoginUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,8 +25,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class OpaqueTokenIssuer implements TokenIssuer {
 
-  /** 兼容明文的密码编码器 */
-  private final CompatiblePasswordEncoder passwordEncoder;
+  /** 密码编码器（BCrypt） */
+  private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
   /** 登录用户装配服务 */
   private final LoginUserService loginUserService;
@@ -34,11 +34,9 @@ public class OpaqueTokenIssuer implements TokenIssuer {
   /**
    * 构造器注入
    *
-   * @param passwordEncoder 密码编码器
    * @param loginUserService 登录用户装配服务
    */
-  public OpaqueTokenIssuer(CompatiblePasswordEncoder passwordEncoder, LoginUserService loginUserService) {
-    this.passwordEncoder = passwordEncoder;
+  public OpaqueTokenIssuer(LoginUserService loginUserService) {
     this.loginUserService = loginUserService;
   }
 

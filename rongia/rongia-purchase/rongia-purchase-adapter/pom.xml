@@ -23,11 +23,21 @@
             <artifactId>rongia-purchase-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 共享适配器：Web MVC / AOP / Knife4j 等统一由此提供，各上下文无需重复声明 -->
+        <!-- Web 入站适配器所需能力由本模块自行显式声明，不再经聚合模块传递 -->
+        <!-- Spring Boot Web：内嵌容器 + Spring MVC（传递 jakarta.servlet-api） -->
         <dependency>
-            <groupId>com.rongia</groupId>
-            <artifactId>rongia-shared-adapter</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- Spring Boot AspectJ：AOP 切面支持 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+        <!-- Knife4j：OpenAPI3 增强 UI（传递 springdoc + swagger-models） -->
+        <dependency>
+            <groupId>com.baizhukui</groupId>
+            <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
         </dependency>
     </dependencies>
 </project>

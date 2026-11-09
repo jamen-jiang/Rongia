@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-platform</artifactId>
+    <name>rongia-platform</name>
+    <description>应用级平台层：承载横切整个应用的运行时装配与技术适配器。它是被依赖的库，start 仅保留启动类与配置；不属于任何业务上下文的 infrastructure，也不是领域共享内核。</description>
+
+    <!-- ==========================================================
+         8 个业务上下文各自拥有 infrastructure，但整应用只有一份 Spring 容器、
+         一套运行时装配。这些类既不属于任何单个上下文，也不是领域共享内核
+         （rongia-shared-*），因此需要独立的「水平横切」模块来承载。
+
+          按技术分包，配置类跟随各自技术（参照 java-hexagonal-template 的做法：
+          方向由技术名自解释，不再用 inbound/outbound 前缀）：
+            web                        Web 配置、全局异常、响应包装、TraceId、类型转换器
+            persistence/mybatis        MyBatis-Plus 装配与 SQL Server 拦截器/TypeHandler
+            persistence/jpa            JPA 装配与审计监听器
+            messaging/axon             Axon 命令/事件总线装配
+            messaging/jobrunr          JobRunr 装配与重试过滤器
+            rendering                  Thymeleaf 模板渲染
+            logging                    SQL Server 日志 Appender
+            redis                      Redis / 缓存 / Jackson 序列化装配
+            security                   Sa-Token 配置与权限数据源
+            dev                        仅本地开发使用的便利组件
+
+         start 作为 Composition Root 只依赖本模块和各业务模块，本模块亦可被
+         将来的第二个启动应用直接依赖（放 start 则无法被反向依赖）。
+         ========================================================== -->
+    <dependencies>
+        <!-- 共享技术组件：JPA / MyBatis-Plus / Redis / Redisson / Sa-Token /
+             Jackson / JobRunr / Thymeleaf / Flowable / POI / AOP 等。
+             Axon 由 shared-application 传递（含两个 Axon Server 连接器 exclusion）。 -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-kernel-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Web 入站适配器：Spring MVC + 内嵌容器 + Servlet API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- OpenAPI / Knife4j：swagger-models 与 springdoc -->
+        <dependency>
+            <groupId>com.baizhukui</groupId>
+            <artifactId>knife4j-openapi3-boot4-spring-boot-starter</artifactId>
+        </dependency>
+    </dependencies>
+</project>
+

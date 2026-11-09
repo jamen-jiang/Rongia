@@ -12,6 +12,13 @@
     <description>start</description>
 
     <dependencies>
+        <!-- 0. 应用级平台层：横切整个应用的运行时装配与技术适配器（被依赖的库） -->
+        <dependency>
+            <groupId>com.rongia</groupId>
+            <artifactId>rongia-platform</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- 1. 销售上下文（必须依赖具体的 application、adapter 和 infrastructure） -->
         <dependency>
             <groupId>com.rongia</groupId>

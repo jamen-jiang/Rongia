@@ -20,7 +20,7 @@
         <!-- 共享基础设施：JPA / Redis / POI / JobRunr 等技术组件统一由此提供，各上下文无需重复声明 -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-shared-infrastructure</artifactId>
+            <artifactId>rongia-kernel-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

@@ -20,7 +20,7 @@
         <!-- 共享应用层：Spring / Swagger 注解 / MapStruct / POI / Axon 等统一由此提供，各上下文无需重复声明 -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-shared-application</artifactId>
+            <artifactId>rongia-kernel-application</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

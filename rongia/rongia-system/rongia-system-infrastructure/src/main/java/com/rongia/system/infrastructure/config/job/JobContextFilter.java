@@ -5,7 +5,6 @@ import com.rongia.shared.infrastructure.core.http.HttpContextHolder;
 import com.rongia.shared.infrastructure.security.user.JobContextHolder;
 import com.rongia.shared.infrastructure.security.user.LoginUser;
 import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
-import com.rongia.shared.infrastructure.websocket.NotificationPushService;
 import com.rongia.system.infrastructure.security.user.LoginUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jobrunr.jobs.AbstractJob;
@@ -24,14 +23,11 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
   /** metadata key：用户 ID */
   private static final String META_USER_ID = "userId";
 
-  /** metadata key：用户名（onFailedAfterRetries 里上下文已清，用它兜底） */
+  /** metadata key：用户名（预留给将来恢复 WebSocket 通知推送，当前无消费者） */
   private static final String META_USER_NAME = "userName";
 
   /** metadata key：HTTP 上下文（JSON 字符串） */
   private static final String META_HTTP_CONTEXT = "httpContext";
-
-  /** 消息推送服务 */
-  private final NotificationPushService pushService;
 
   /** JSON 序列化器，用于 HttpContext 存取 */
   private final JsonMapper jsonMapper;
@@ -42,15 +38,10 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
   /**
    * 构造器注入
    *
-   * @param pushService 消息推送服务
    * @param jsonMapper JSON 序列化器
    * @param loginUserService 登录用户服务
    */
-  public JobContextFilter(
-      NotificationPushService pushService,
-      JsonMapper jsonMapper,
-      LoginUserService loginUserService) {
-    this.pushService = pushService;
+  public JobContextFilter(JsonMapper jsonMapper, LoginUserService loginUserService) {
     this.jsonMapper = jsonMapper;
     this.loginUserService = loginUserService;
   }
@@ -69,12 +60,12 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
       return;
     }
 
-    // 1. 保存 userId + userName（userName 预存，供 onFailedAfterRetries 使用）
+    // 1. 保存 userId + userName（userName 预留给将来恢复通知推送）
     LoginUser user = currentUser();
     if (user != null) {
       actualJob.getMetadata().put(META_USER_ID, user.getUserId());
-      actualJob.getMetadata().put(META_USER_NAME, user.getUsername());
-      log.debug("[JobRunr] 保存 userId={}, userName={}", user.getUserId(), user.getUsername());
+      actualJob.getMetadata().put(META_USER_NAME, user.getUserName());
+      log.debug("[JobRunr] 保存 userId={}, userName={}", user.getUserId(), user.getUserName());
     }
 
     // 2. 保存 HttpContext
@@ -129,20 +120,13 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
   // ========== 任务成功 ==========
 
   /**
-   * 任务成功后推送完成通知，并清理上下文
+   * 任务成功后清理上下文（WebSocket 通知已临时移除）
    *
    * @param job 任务
    */
   @Override
   public void onProcessingSucceeded(Job job) {
-    try {
-      String userName = currentUserName();
-      if (userName != null) {
-        pushService.pushTaskDone(userName, job.getId().toString());
-      }
-    } finally {
-      clearAll();
-    }
+    clearAll();
   }
 
   // ========== 任务失败（每次，包括最终那次） ==========
@@ -166,20 +150,13 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
   // ========== 重试耗尽，最终失败 ==========
 
   /**
-   * 重试耗尽后推送失败通知
+   * 重试耗尽：WebSocket 通知已临时移除，暂无额外处理
    *
    * @param job 任务
    */
   @Override
   public void onFailedAfterRetries(Job job) {
-    // onProcessingFailed 已经清过上下文了，这里只能从 metadata 取 userName
-    Object userNameObj = job.getMetadata().get(META_USER_NAME);
-    if (userNameObj != null) {
-      String userName = userNameObj.toString();
-      String jobName = job.getJobName();
-      pushService.pushLog(userName, "任务失败: " + jobName + "(" + job.getId() + ")", false);
-      pushService.pushTaskDone(userName, job.getId().toString());
-    }
+    // 通知推送随 WebSocket 功能一起临时移除；恢复时在此补回 pushLog / pushTaskDone
   }
 
   // ========== 工具 ==========
@@ -191,16 +168,6 @@ public class JobContextFilter implements JobClientFilter, JobServerFilter {
    */
   private LoginUser currentUser() {
     return StpLoginUserUtil.getLoginUser();
-  }
-
-  /**
-   * 取当前请求的用户名
-   *
-   * @return 用户名，无则返回 null
-   */
-  private String currentUserName() {
-    LoginUser user = currentUser();
-    return user != null ? user.getUsername() : null;
   }
 
   /** 清理登录用户上下文和 HttpContext */

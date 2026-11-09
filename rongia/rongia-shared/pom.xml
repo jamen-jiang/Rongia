@@ -9,21 +9,25 @@
         <version>1.0.0</version>
     </parent>
     <artifactId>rongia-shared</artifactId>
-    <packaging>pom</packaging>
     <name>rongia-shared</name>
-    <description>共享层聚合模块：统一收拢 domain / application / infrastructure / adapter 四个共享模块</description>
+    <description>通用原语模块：零业务语义的基础契约与工具（枚举契约 / 枚举转换 / 领域异常 / 取值文本工具），被 rongia-domain-kernel 与各业务上下文 domain 层依赖。</description>
 
     <!-- ==========================================================
-         本模块只做目录分组与聚合，不含任何依赖声明。
-         四个共享模块的 parent 指向本模块，继承链为：
-             rongia-shared-*  ->  rongia-shared  ->  rongia  ->  spring-boot-starter-parent
-         结构与 rongia-basedata / rongia-stock / rongia-production /
-         rongia-sales 四个业务上下文完全一致。
+         顶层模块，与 rongia-kernel 同级；本模块是普通 jar，不再做聚合。
+         enums / exception / util 三个包共 4 个类：
+             BaseEnum / DomainException / EnumUtils / ValueTextUtils
+         它们不含领域模型语义，也不含 Spring / 持久化 / Web 依赖。
+         rongia-domain-kernel 直接依赖本模块；7 个业务上下文 domain 层
+         通过 domain-kernel 传递依赖本模块。
+
+         DomainException 虽是领域异常，但 EnumUtils 会抛它；若留在
+         domain-kernel，本模块就得反向依赖 domain-kernel 而成环，
+         故随工具一并收拢在此。
+
+         commons-lang3 / jspecify 由根 pom 全局声明，所有模块自动继承，
+         故本模块不显式声明任何依赖。
+
+         包名沿用 com.rongia.shared.domain.*（全项目 379 处引用），
+         本次只换模块归属，java 内容一行未改。
          ========================================================== -->
-    <modules>
-        <module>rongia-shared-domain</module>
-        <module>rongia-shared-application</module>
-        <module>rongia-shared-infrastructure</module>
-        <module>rongia-shared-adapter</module>
-    </modules>
 </project>

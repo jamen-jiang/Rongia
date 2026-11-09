@@ -65,9 +65,9 @@ public class OpaqueTokenIssuer implements TokenIssuer {
     StpUtil.getTokenSession().set(StpLoginUserUtil.LOGIN_USER_KEY, loginUser);
 
     String token = StpUtil.getTokenValue();
-    log.info("用户登录成功: {} (userId={})", loginUser.getUsername(), loginUser.getUserId());
+    log.info("用户登录成功: {} (userId={})", loginUser.getUserName(), loginUser.getUserId());
     return new IssuedToken(
-        loginUser.getUserId(), loginUser.getUsername(), loginUser.getName(), token);
+        loginUser.getUserId(), loginUser.getUserName(), loginUser.getName(), token);
   }
 
   /**
@@ -96,6 +96,6 @@ public class OpaqueTokenIssuer implements TokenIssuer {
     if (loginUser == null) {
       return new SignOutResult(Long.valueOf(loginId.toString()), null, null);
     }
-    return new SignOutResult(loginUser.getUserId(), loginUser.getUsername(), loginUser.getName());
+    return new SignOutResult(loginUser.getUserId(), loginUser.getUserName(), loginUser.getName());
   }
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rongia</groupId>
+        <artifactId>rongia</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>rongia-kernel</artifactId>
+    <packaging>pom</packaging>
+    <name>rongia-kernel</name>
+    <description>内核层聚合模块：顶层模块（与 rongia-shared 同级），统一收拢 DDD 领域内核与共享 application / infrastructure 三个模块</description>
+
+    <!-- ==========================================================
+         本模块只做目录分组与聚合，不含任何依赖声明。
+         三个子模块的 parent 指向本模块，继承链为：
+             rongia-domain-kernel / rongia-kernel-application /
+             rongia-kernel-infrastructure
+                 ->  rongia-kernel  ->  rongia  ->  spring-boot-starter-parent
+         与 rongia-shared 平级：
+             rongia-kernel = 领域内核 + 共享应用层/基础设施层
+             rongia-shared = 零业务语义的通用原语（BaseEnum / EnumUtils /
+                             DomainException / ValueTextUtils）
+         ========================================================== -->
+    <modules>
+        <module>rongia-domain-kernel</module>
+        <module>rongia-kernel-application</module>
+        <module>rongia-kernel-infrastructure</module>
+    </modules>
+</project>

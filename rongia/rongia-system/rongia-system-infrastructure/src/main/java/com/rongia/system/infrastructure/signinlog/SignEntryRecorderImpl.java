@@ -4,9 +4,9 @@ import com.rongia.system.application.signentry.port.SignEntryRecord;
 import com.rongia.system.application.signentry.port.SignEntryRecorder;
 import com.rongia.system.application.signinlog.command.AddSignInLogCommand;
 import com.rongia.system.domain.signinlog.SignEntryTypeEnum;
-import com.rongia.shared.application.port.job.BackgroundExecutor;
-import com.rongia.shared.infrastructure.core.http.HttpContext;
-import com.rongia.shared.infrastructure.core.http.HttpContextHolder;
+import com.rongia.kernel.application.port.job.BackgroundExecutor;
+import com.rongia.kernel.infrastructure.http.HttpContext;
+import com.rongia.kernel.infrastructure.http.HttpContextHolder;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 

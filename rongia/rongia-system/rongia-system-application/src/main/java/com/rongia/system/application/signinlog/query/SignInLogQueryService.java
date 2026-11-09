@@ -1,6 +1,6 @@
 package com.rongia.system.application.signinlog.query;
 
-import com.rongia.shared.application.response.PageResponse;
+import com.rongia.shared.response.PageResponse;
 import org.jspecify.annotations.NullMarked;
 
 /** 登录日志查询服务接口 */

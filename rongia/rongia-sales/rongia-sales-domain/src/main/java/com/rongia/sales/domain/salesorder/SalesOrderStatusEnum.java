@@ -1,6 +1,6 @@
 package com.rongia.sales.domain.salesorder;
 
-import com.rongia.shared.domain.enums.BaseEnum;
+import com.rongia.shared.enums.BaseEnum;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;
 

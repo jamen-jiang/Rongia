@@ -10,14 +10,14 @@
     </parent>
     <artifactId>rongia-shared</artifactId>
     <name>rongia-shared</name>
-    <description>通用原语模块：零业务语义的基础契约与工具（枚举契约 / 枚举转换 / 领域异常 / 取值文本工具），被 rongia-domain-kernel 与各业务上下文 domain 层依赖。</description>
+    <description>通用原语模块：零业务语义的基础契约与工具（枚举契约 / 枚举转换 / 领域异常 / 取值文本工具），被 rongia-kernel-domain 与各业务上下文 domain 层依赖。</description>
 
     <!-- ==========================================================
          顶层模块，与 rongia-kernel 同级；本模块是普通 jar，不再做聚合。
          enums / exception / util 三个包共 4 个类：
              BaseEnum / DomainException / EnumUtils / ValueTextUtils
          它们不含领域模型语义，也不含 Spring / 持久化 / Web 依赖。
-         rongia-domain-kernel 直接依赖本模块；7 个业务上下文 domain 层
+         rongia-kernel-domain 直接依赖本模块；7 个业务上下文 domain 层
          通过 domain-kernel 传递依赖本模块。
 
          DomainException 虽是领域异常，但 EnumUtils 会抛它；若留在
@@ -27,7 +27,6 @@
          commons-lang3 / jspecify 由根 pom 全局声明，所有模块自动继承，
          故本模块不显式声明任何依赖。
 
-         包名沿用 com.rongia.shared.domain.*（全项目 379 处引用），
-         本次只换模块归属，java 内容一行未改。
+         包名 com.rongia.shared.{enums,exception,util}。
          ========================================================== -->
 </project>

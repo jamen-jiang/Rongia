@@ -1,6 +1,6 @@
 package com.rongia.system.domain.user;
 
-import com.rongia.shared.domain.entity.BaseDeleteEntity;
+import com.rongia.kernel.domain.entity.BaseDeleteEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

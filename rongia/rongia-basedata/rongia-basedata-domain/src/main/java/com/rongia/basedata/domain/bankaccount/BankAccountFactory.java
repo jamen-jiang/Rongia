@@ -1,7 +1,7 @@
 package com.rongia.basedata.domain.bankaccount;
 
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

@@ -1,6 +1,6 @@
 package com.rongia.system.domain.attachment;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.util.List;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

@@ -16,7 +16,7 @@
     <!-- ==========================================================
          本模块只做目录分组与聚合，不含任何依赖声明。
          三个子模块的 parent 指向本模块，继承链为：
-             rongia-domain-kernel / rongia-kernel-application /
+             rongia-kernel-domain / rongia-kernel-application /
              rongia-kernel-infrastructure
                  ->  rongia-kernel  ->  rongia  ->  spring-boot-starter-parent
          与 rongia-shared 平级：
@@ -25,7 +25,7 @@
                              DomainException / ValueTextUtils）
          ========================================================== -->
     <modules>
-        <module>rongia-domain-kernel</module>
+        <module>rongia-kernel-domain</module>
         <module>rongia-kernel-application</module>
         <module>rongia-kernel-infrastructure</module>
     </modules>

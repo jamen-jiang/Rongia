@@ -1,8 +1,8 @@
 package com.rongia.platform.security;
 
 import cn.dev33.satoken.stp.StpInterface;
-import com.rongia.shared.infrastructure.security.user.LoginUser;
-import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
+import com.rongia.kernel.infrastructure.security.LoginUser;
+import com.rongia.kernel.infrastructure.security.StpLoginUserUtil;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

@@ -1,10 +1,10 @@
 package com.rongia.stock.domain.stockentry;
 
 import com.rongia.stock.domain.stockentrytype.StockEntryType;
-import com.rongia.shared.domain.aggregate.OrderAggregateRoot;
-import com.rongia.shared.domain.enums.SerialNumberTypeEnum;
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.aggregate.OrderAggregateRoot;
+import com.rongia.kernel.domain.enums.SerialNumberTypeEnum;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

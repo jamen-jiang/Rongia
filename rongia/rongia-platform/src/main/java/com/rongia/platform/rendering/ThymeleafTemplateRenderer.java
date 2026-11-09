@@ -1,6 +1,6 @@
 package com.rongia.platform.rendering;
 
-import com.rongia.shared.application.port.template.TemplateRenderer;
+import com.rongia.kernel.application.port.template.TemplateRenderer;
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.annotation.Qualifier;

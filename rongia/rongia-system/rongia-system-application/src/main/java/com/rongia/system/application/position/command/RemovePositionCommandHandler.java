@@ -1,8 +1,8 @@
 package com.rongia.system.application.position.command;
 
-import com.rongia.shared.application.consts.EntityConst;
-import com.rongia.shared.application.exception.ApiException;
-import com.rongia.shared.application.port.lock.DistributedLock;
+import com.rongia.kernel.application.exception.ApiException;
+import com.rongia.kernel.application.port.lock.DistributedLock;
+import com.rongia.system.application.consts.EntityConst;
 import com.rongia.system.domain.position.Position;
 import com.rongia.system.domain.position.PositionRepository;
 import org.axonframework.messaging.commandhandling.annotation.CommandHandler;

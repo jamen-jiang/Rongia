@@ -1,7 +1,7 @@
 package com.rongia.system.application.position.query;
 
-import com.rongia.shared.application.request.PageRequest;
-import com.rongia.shared.application.cqrs.Query;
+import com.rongia.shared.request.PageRequest;
+import com.rongia.kernel.application.mediator.Query;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;

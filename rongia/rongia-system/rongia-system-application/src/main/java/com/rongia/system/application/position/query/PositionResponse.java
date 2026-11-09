@@ -1,6 +1,6 @@
 package com.rongia.system.application.position.query;
 
-import com.rongia.shared.application.response.BaseResponse;
+import com.rongia.kernel.application.response.BaseResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;

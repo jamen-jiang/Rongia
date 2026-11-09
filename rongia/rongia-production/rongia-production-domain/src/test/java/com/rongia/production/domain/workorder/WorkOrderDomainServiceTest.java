@@ -15,7 +15,7 @@ import com.rongia.production.domain.bom.BomTypeEnum;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

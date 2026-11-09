@@ -1,6 +1,6 @@
 package com.rongia.system.application.company.query;
 
-import com.rongia.shared.application.response.BaseResponse;
+import com.rongia.kernel.application.response.BaseResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import lombok.Getter;

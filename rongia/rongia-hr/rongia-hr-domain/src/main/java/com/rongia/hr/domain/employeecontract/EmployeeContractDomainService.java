@@ -1,6 +1,6 @@
 package com.rongia.hr.domain.employeecontract;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import com.rongia.hr.domain.employee.EmployeeRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;

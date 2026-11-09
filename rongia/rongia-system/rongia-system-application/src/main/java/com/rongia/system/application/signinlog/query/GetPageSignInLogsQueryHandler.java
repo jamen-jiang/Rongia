@@ -1,6 +1,6 @@
 package com.rongia.system.application.signinlog.query;
 
-import com.rongia.shared.application.response.PageResponse;
+import com.rongia.shared.response.PageResponse;
 import org.axonframework.messaging.queryhandling.annotation.QueryHandler;
 import org.springframework.stereotype.Component;
 

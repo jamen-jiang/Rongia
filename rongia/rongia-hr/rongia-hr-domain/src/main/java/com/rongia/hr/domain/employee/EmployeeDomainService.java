@@ -1,6 +1,6 @@
 package com.rongia.hr.domain.employee;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.time.LocalDate;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

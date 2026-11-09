@@ -1,6 +1,6 @@
 package com.rongia.system.domain.systemlog;
 
-import com.rongia.shared.domain.aggregate.BaseAggregateRoot;
+import com.rongia.kernel.domain.aggregate.BaseAggregateRoot;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

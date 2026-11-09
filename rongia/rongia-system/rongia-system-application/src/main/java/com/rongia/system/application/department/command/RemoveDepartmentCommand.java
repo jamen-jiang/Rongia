@@ -1,6 +1,6 @@
 package com.rongia.system.application.department.command;
 
-import com.rongia.shared.application.cqrs.Command;
+import com.rongia.kernel.application.mediator.Command;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;

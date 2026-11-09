@@ -1,6 +1,6 @@
 package com.rongia.production.domain.jobcard;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

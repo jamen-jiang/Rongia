@@ -1,6 +1,6 @@
 package com.rongia.system.application.user.query;
 
-import com.rongia.shared.application.response.BaseResponse;
+import com.rongia.kernel.application.response.BaseResponse;
 import com.rongia.system.application.role.query.RoleResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;

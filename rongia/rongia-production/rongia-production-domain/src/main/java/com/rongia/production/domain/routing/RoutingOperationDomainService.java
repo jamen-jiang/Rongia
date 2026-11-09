@@ -4,7 +4,7 @@ import com.rongia.production.domain.operation.Operation;
 import com.rongia.production.domain.operation.OperationRepository;
 import com.rongia.production.domain.workcenter.WorkCenter;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.NullMarked;

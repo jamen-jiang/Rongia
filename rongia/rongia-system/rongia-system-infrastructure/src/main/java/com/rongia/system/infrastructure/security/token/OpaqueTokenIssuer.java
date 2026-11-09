@@ -2,9 +2,9 @@ package com.rongia.system.infrastructure.security.token;
 
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
-import com.rongia.shared.application.exception.ApiException;
-import com.rongia.shared.infrastructure.security.user.LoginUser;
-import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
+import com.rongia.kernel.application.exception.ApiException;
+import com.rongia.kernel.infrastructure.security.LoginUser;
+import com.rongia.kernel.infrastructure.security.StpLoginUserUtil;
 import com.rongia.system.application.security.token.IssuedToken;
 import com.rongia.system.application.security.token.SignOutResult;
 import com.rongia.system.application.security.token.TokenIssuer;

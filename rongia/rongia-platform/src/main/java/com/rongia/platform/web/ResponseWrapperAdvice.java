@@ -1,6 +1,6 @@
 package com.rongia.platform.web;
 
-import com.rongia.shared.application.response.ApiResponse;
+import com.rongia.kernel.application.response.ApiResponse;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.MethodParameter;

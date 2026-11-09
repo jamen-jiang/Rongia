@@ -1,6 +1,6 @@
 package com.rongia.production.domain.calendar;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import org.jspecify.annotations.NullMarked;

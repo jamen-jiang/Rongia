@@ -1,10 +1,10 @@
 package com.rongia.system.infrastructure.config.job;
 
-import com.rongia.shared.infrastructure.core.http.HttpContext;
-import com.rongia.shared.infrastructure.core.http.HttpContextHolder;
-import com.rongia.shared.infrastructure.security.user.JobContextHolder;
-import com.rongia.shared.infrastructure.security.user.LoginUser;
-import com.rongia.shared.infrastructure.security.user.StpLoginUserUtil;
+import com.rongia.kernel.infrastructure.http.HttpContext;
+import com.rongia.kernel.infrastructure.http.HttpContextHolder;
+import com.rongia.kernel.infrastructure.security.JobContextHolder;
+import com.rongia.kernel.infrastructure.security.LoginUser;
+import com.rongia.kernel.infrastructure.security.StpLoginUserUtil;
 import com.rongia.system.infrastructure.security.user.LoginUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jobrunr.jobs.AbstractJob;

@@ -1,7 +1,7 @@
 package com.rongia.production.domain.routing;
 
-import com.rongia.shared.domain.entity.BaseDeleteEntity;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.entity.BaseDeleteEntity;
+import com.rongia.kernel.domain.exception.DomainException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

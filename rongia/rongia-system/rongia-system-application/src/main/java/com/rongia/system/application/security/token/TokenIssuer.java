@@ -12,7 +12,7 @@ public interface TokenIssuer {
    * @param userName 账号
    * @param password 密码
    * @return 颁发结果
-   * @throws com.rongia.shared.application.exception.ApiException 账号密码错误时抛出
+   * @throws com.rongia.kernel.application.exception.ApiException 账号密码错误时抛出
    */
   @NonNull IssuedToken issue(@NonNull String userName, @NonNull String password);
 

@@ -1,10 +1,10 @@
 package com.rongia.platform.web;
 
 import cn.dev33.satoken.exception.NotLoginException;
-import com.rongia.shared.application.enums.ApiStatusEnum;
-import com.rongia.shared.application.exception.ApiException;
-import com.rongia.shared.application.response.ApiResponse;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.application.enums.ApiStatusEnum;
+import com.rongia.kernel.application.exception.ApiException;
+import com.rongia.kernel.application.response.ApiResponse;
+import com.rongia.kernel.domain.exception.DomainException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpStatus;

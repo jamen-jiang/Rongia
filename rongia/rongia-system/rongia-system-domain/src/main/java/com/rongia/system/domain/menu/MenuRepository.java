@@ -1,6 +1,6 @@
 package com.rongia.system.domain.menu;
 
-import com.rongia.shared.domain.repository.Repository;
+import com.rongia.kernel.domain.repository.Repository;
 import java.util.List;
 import org.jspecify.annotations.NullMarked;
 

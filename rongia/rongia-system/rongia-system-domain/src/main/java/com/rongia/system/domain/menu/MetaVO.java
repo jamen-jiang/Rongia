@@ -1,6 +1,6 @@
 package com.rongia.system.domain.menu;
 
-import com.rongia.shared.domain.valueobject.ValueObject;
+import com.rongia.kernel.domain.valueobject.ValueObject;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.io.Serial;

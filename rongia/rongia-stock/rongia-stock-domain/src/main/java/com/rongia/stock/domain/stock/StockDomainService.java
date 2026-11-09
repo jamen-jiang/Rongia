@@ -2,7 +2,7 @@ package com.rongia.stock.domain.stock;
 
 import com.rongia.stock.domain.warehouse.Warehouse;
 import com.rongia.stock.domain.warehouse.WarehouseRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import org.jspecify.annotations.NullMarked;
 

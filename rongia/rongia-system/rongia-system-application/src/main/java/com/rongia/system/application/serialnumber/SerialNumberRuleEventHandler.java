@@ -1,7 +1,7 @@
 package com.rongia.system.application.serialnumber;
 
-import com.rongia.shared.domain.event.DomainEventHandler;
-import com.rongia.shared.domain.event.OrderAddedEvent;
+import com.rongia.kernel.domain.event.DomainEventHandler;
+import com.rongia.kernel.domain.event.OrderAddedEvent;
 import com.rongia.system.domain.serialnumber.SerialNumberRuleDomainService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;

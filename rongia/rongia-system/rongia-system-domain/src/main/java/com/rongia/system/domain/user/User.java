@@ -1,7 +1,7 @@
 package com.rongia.system.domain.user;
 
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.aggregate.UpdateAggregateRoot;
+import com.rongia.kernel.domain.exception.DomainException;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.Collections;

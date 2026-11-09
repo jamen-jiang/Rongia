@@ -17,17 +17,18 @@
          （rongia-shared-*），因此需要独立的「水平横切」模块来承载。
 
           按技术分包，配置类跟随各自技术（参照 java-hexagonal-template 的做法：
-          方向由技术名自解释，不再用 inbound/outbound 前缀）：
-            web                        Web 配置、全局异常、响应包装、TraceId、类型转换器
-            persistence/mybatis        MyBatis-Plus 装配与 SQL Server 拦截器/TypeHandler
-            persistence/jpa            JPA 装配与审计监听器
-            messaging/axon             Axon 命令/事件总线装配
-            messaging/jobrunr          JobRunr 装配与重试过滤器
-            rendering                  Thymeleaf 模板渲染
-            logging                    SQL Server 日志 Appender
-            redis                      Redis / 缓存 / Jackson 序列化装配
-            security                   Sa-Token 配置与权限数据源
-            dev                        仅本地开发使用的便利组件
+          方向由技术名自解释，不再用 inbound/outbound 前缀）。技术名即为一级包，
+          不再套 messaging / persistence 这类方向性中转层：
+            web         Web 配置、全局异常、响应包装、TraceId、类型转换器
+            mybatis     MyBatis-Plus 装配与 SQL Server 拦截器/TypeHandler
+            jpa         JPA 装配与审计监听器
+            axon        Axon 命令/事件总线装配
+            jobrunr     JobRunr 装配与重试过滤器
+            rendering   Thymeleaf 模板渲染
+            logging     SQL Server 日志 Appender
+            redis       Redis / 缓存 / Jackson 序列化装配
+            security    Sa-Token 配置与权限数据源
+            dev         仅本地开发使用的便利组件
 
          start 作为 Composition Root 只依赖本模块和各业务模块，本模块亦可被
          将来的第二个启动应用直接依赖（放 start 则无法被反向依赖）。

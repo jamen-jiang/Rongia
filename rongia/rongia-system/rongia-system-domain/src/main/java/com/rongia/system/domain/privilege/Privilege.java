@@ -1,8 +1,8 @@
 package com.rongia.system.domain.privilege;
 
-import com.rongia.shared.domain.aggregate.DeleteAggregateRoot;
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.aggregate.DeleteAggregateRoot;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

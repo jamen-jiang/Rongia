@@ -1,7 +1,7 @@
 package com.rongia.system.application.user.command;
 
-import com.rongia.shared.application.consts.EntityConst;
-import com.rongia.shared.application.port.lock.DistributedLock;
+import com.rongia.kernel.application.port.lock.DistributedLock;
+import com.rongia.system.application.consts.EntityConst;
 import com.rongia.system.domain.user.User;
 import com.rongia.system.domain.user.UserDomainService;
 import com.rongia.system.domain.user.UserRepository;

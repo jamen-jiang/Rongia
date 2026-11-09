@@ -3,8 +3,8 @@ package com.rongia.basedata.domain.bankaccount;
 import com.rongia.basedata.domain.bank.BankRepository;
 import com.rongia.basedata.domain.currency.CurrencyRepository;
 import com.rongia.basedata.domain.supplier.SupplierRepository;
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

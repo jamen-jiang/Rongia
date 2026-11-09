@@ -1,7 +1,7 @@
 package com.rongia.system.domain.attribute;
 
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.ValueTextUtils;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.ValueTextUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;

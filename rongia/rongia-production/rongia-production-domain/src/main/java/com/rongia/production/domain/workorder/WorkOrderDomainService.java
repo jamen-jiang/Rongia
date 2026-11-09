@@ -11,7 +11,7 @@ import com.rongia.production.domain.routing.Routing;
 import com.rongia.production.domain.routing.RoutingRepository;
 import com.rongia.production.domain.workcenter.WorkCenter;
 import com.rongia.production.domain.workcenter.WorkCenterRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;

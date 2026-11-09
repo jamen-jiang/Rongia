@@ -3,7 +3,7 @@ package com.rongia.production.domain.calendar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;

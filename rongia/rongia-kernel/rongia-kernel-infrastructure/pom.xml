@@ -21,7 +21,7 @@
         <!-- 共享领域层：Entity / AggregateRoot / DomainEvent 等 DDD 构件 -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-domain-kernel</artifactId>
+            <artifactId>rongia-kernel-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- 共享应用层：TokenIssuer / CurrentUser 等跨上下文端口在此定义，本层实现它们 -->
@@ -91,7 +91,7 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
-        <!-- Servlet API：HttpContextHolder / WebUtils 需要 -->
+        <!-- Servlet API：HttpContextHolder 需要 -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
@@ -161,7 +161,25 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- ================= User-Agent 解析 ================= -->
+
+        <!-- Axon Framework：CQRS 命令与查询分发 -->
+        <dependency>
+            <groupId>io.axoniq.framework</groupId>
+            <artifactId>axoniq-spring-boot-starter</artifactId>
+            <exclusions>
+                <!-- 排除 Axon Server 连接器：本项目使用本地事件存储，不接入 Axon Server -->
+                <exclusion>
+                    <groupId>io.axoniq.framework</groupId>
+                    <artifactId>axon-server-connector</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.axoniq</groupId>
+                    <artifactId>axonserver-connector-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        
+        <!-- ================= User-Agent 解析：HttpContextHolder 使用 ================= -->
         <dependency>
             <groupId>nl.basjes.parse.useragent</groupId>
             <artifactId>yauaa</artifactId>

@@ -1,6 +1,6 @@
 package com.rongia.system.application.position.query;
 
-import com.rongia.shared.application.exception.ApiException;
+import com.rongia.kernel.application.exception.ApiException;
 import org.axonframework.messaging.queryhandling.annotation.QueryHandler;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

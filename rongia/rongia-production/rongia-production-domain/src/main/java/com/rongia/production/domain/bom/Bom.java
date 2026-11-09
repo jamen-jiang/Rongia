@@ -1,8 +1,8 @@
 package com.rongia.production.domain.bom;
 
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.aggregate.UpdateAggregateRoot;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

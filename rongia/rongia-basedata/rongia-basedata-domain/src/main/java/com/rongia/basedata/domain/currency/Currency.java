@@ -1,7 +1,7 @@
 package com.rongia.basedata.domain.currency;
 
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.aggregate.UpdateAggregateRoot;
+import com.rongia.kernel.domain.exception.DomainException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;

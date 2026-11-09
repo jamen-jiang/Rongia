@@ -1,7 +1,7 @@
 package com.rongia.system.infrastructure.security.user;
 
-import com.rongia.shared.application.exception.ApiException;
-import com.rongia.shared.infrastructure.security.user.LoginUser;
+import com.rongia.kernel.application.exception.ApiException;
+import com.rongia.kernel.infrastructure.security.LoginUser;
 import com.rongia.system.domain.user.User;
 import com.rongia.system.infrastructure.user.UserJpa;
 import org.jspecify.annotations.NonNull;

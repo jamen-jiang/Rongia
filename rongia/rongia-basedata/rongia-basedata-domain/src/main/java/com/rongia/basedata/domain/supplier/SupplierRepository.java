@@ -1,6 +1,6 @@
 package com.rongia.basedata.domain.supplier;
 
-import com.rongia.shared.domain.repository.Repository;
+import com.rongia.kernel.domain.repository.Repository;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

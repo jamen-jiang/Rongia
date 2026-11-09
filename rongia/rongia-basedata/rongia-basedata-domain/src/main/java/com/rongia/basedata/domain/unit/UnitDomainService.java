@@ -1,7 +1,7 @@
 package com.rongia.basedata.domain.unit;
 
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.HierarchyUtils;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.kernel.domain.util.HierarchyUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;

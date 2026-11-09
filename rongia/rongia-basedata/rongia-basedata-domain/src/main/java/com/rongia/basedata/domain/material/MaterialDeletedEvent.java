@@ -1,6 +1,6 @@
 package com.rongia.basedata.domain.material;
 
-import com.rongia.shared.domain.event.DomainEvent;
+import com.rongia.kernel.domain.event.DomainEvent;
 import org.jspecify.annotations.NullMarked;
 
 /** 物料删除事件 */

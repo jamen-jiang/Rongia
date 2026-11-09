@@ -1,6 +1,6 @@
 package com.rongia.system.application.company.query;
 
-import com.rongia.shared.application.response.PageResponse;
+import com.rongia.shared.response.PageResponse;
 import java.util.List;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

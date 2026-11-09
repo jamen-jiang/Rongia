@@ -1,7 +1,7 @@
 package com.rongia.basedata.domain.supplier;
 
 import com.rongia.basedata.domain.currency.CurrencyRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

@@ -1,7 +1,7 @@
 package com.rongia.basedata.domain.category;
 
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.HierarchyUtils;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.kernel.domain.util.HierarchyUtils;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 

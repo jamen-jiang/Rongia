@@ -4,7 +4,7 @@ import com.rongia.basedata.domain.category.CategoryRepository;
 import com.rongia.basedata.domain.unit.UnitRepository;
 import com.rongia.basedata.domain.variant.Variant;
 import com.rongia.basedata.domain.variant.VariantRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;

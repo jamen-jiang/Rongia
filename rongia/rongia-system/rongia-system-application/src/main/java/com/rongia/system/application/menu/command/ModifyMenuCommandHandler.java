@@ -1,7 +1,7 @@
 package com.rongia.system.application.menu.command;
 
-import com.rongia.shared.application.consts.EntityConst;
-import com.rongia.shared.application.port.lock.DistributedLock;
+import com.rongia.kernel.application.port.lock.DistributedLock;
+import com.rongia.system.application.consts.EntityConst;
 import com.rongia.system.domain.menu.Menu;
 import com.rongia.system.domain.menu.MenuDomainService;
 import com.rongia.system.domain.menu.MenuRepository;

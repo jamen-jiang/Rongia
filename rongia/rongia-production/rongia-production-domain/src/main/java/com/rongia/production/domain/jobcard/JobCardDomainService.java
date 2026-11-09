@@ -3,7 +3,7 @@ package com.rongia.production.domain.jobcard;
 import com.rongia.production.domain.workorder.WorkOrder;
 import com.rongia.production.domain.workorder.WorkOrderOperation;
 import com.rongia.production.domain.workorder.WorkOrderRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;

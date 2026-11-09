@@ -1,7 +1,7 @@
 package com.rongia.production.domain.bom;
 
 import com.rongia.production.domain.routing.RoutingRepository;
-import com.rongia.shared.domain.exception.DomainException;
+import com.rongia.kernel.domain.exception.DomainException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;

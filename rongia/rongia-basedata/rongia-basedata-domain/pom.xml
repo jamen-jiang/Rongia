@@ -14,7 +14,7 @@
         <!-- 共享领域层：Entity / AggregateRoot / ValueObject / DomainEvent / Repository 等 DDD 构件 -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-domain-kernel</artifactId>
+            <artifactId>rongia-kernel-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
 

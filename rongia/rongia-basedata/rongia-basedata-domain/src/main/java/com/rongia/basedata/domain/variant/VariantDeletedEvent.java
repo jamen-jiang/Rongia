@@ -1,6 +1,6 @@
 package com.rongia.basedata.domain.variant;
 
-import com.rongia.shared.domain.event.DomainEvent;
+import com.rongia.kernel.domain.event.DomainEvent;
 import java.util.TreeMap;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;

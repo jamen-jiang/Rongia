@@ -14,7 +14,7 @@ import com.rongia.system.infrastructure.department.DepartmentJpa;
 import com.rongia.system.infrastructure.position.PositionJpa;
 import com.rongia.system.infrastructure.privilege.PrivilegeJpa;
 import com.rongia.system.infrastructure.user.UserJpa;
-import com.rongia.shared.infrastructure.security.user.LoginUser;
+import com.rongia.kernel.infrastructure.security.LoginUser;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;

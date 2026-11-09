@@ -1,6 +1,6 @@
 package com.rongia.basedata.domain.material;
 
-import com.rongia.shared.domain.event.DomainEvent;
+import com.rongia.kernel.domain.event.DomainEvent;
 import java.util.List;
 import lombok.Getter;
 import org.jspecify.annotations.NullMarked;

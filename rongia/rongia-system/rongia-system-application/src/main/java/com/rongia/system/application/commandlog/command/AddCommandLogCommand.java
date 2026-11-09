@@ -1,7 +1,7 @@
 package com.rongia.system.application.commandlog.command;
 
-import com.rongia.shared.application.cqrs.Command;
-import com.rongia.shared.application.cqrs.NoLogCommand;
+import com.rongia.kernel.application.mediator.Command;
+import com.rongia.kernel.application.mediator.NoLogCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.Objects;

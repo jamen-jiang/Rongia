@@ -1,8 +1,8 @@
 package com.rongia.hr.domain.employee;
 
-import com.rongia.shared.domain.aggregate.UpdateAggregateRoot;
-import com.rongia.shared.domain.exception.DomainException;
-import com.rongia.shared.domain.util.EnumUtils;
+import com.rongia.kernel.domain.aggregate.UpdateAggregateRoot;
+import com.rongia.kernel.domain.exception.DomainException;
+import com.rongia.shared.util.EnumUtils;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import lombok.AccessLevel;

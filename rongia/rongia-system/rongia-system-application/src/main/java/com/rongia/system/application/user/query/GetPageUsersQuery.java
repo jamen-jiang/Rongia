@@ -1,6 +1,6 @@
 package com.rongia.system.application.user.query;
 
-import com.rongia.shared.application.request.PageRequestWithUnique;
+import com.rongia.shared.request.PageRequestWithUnique;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;

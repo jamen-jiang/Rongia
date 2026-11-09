@@ -63,7 +63,7 @@ public class LoginUser implements Serializable {
    * @param userName 账号
    * @param password 密码
    * @param name 用户名称
-   * @param mobilePhone 手机号（可空）
+   * @param mobile 手机号（可空）
    * @param email 邮箱（可空）
    * @param isSuperAdmin 是否超级管理员
    * @param menuIds 菜单Id列表（可空）
@@ -97,14 +97,5 @@ public class LoginUser implements Serializable {
     this.companyIds = companyIds == null ? Set.of() : companyIds;
     this.departmentIds = departmentIds == null ? Set.of() : departmentIds;
     this.positionIds = positionIds == null ? Set.of() : positionIds;
-  }
-
-  /**
-   * 账号
-   *
-   * @return 账号
-   */
-  public String getUsername() {
-    return userName;
   }
 }

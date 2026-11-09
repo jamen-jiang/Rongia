@@ -26,7 +26,7 @@ public class CurrentUserImpl implements CurrentUser {
    */
   @Override
   public String getUserName() {
-    return loginUser().getUsername();
+    return loginUser().getUserName();
   }
 
   /**

@@ -129,8 +129,7 @@ public class JavaMailEmailSender implements EmailSender {
       }
 
       MimeMessage message = javaMailSender.createMimeMessage();
-      MimeMessageHelper helper =
-          new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
 
       // 发送人邮箱直接从 JavaMailSenderImpl 取，等价于 spring.mail.username
       String from = ((JavaMailSenderImpl) javaMailSender).getUsername();
@@ -191,8 +190,10 @@ public class JavaMailEmailSender implements EmailSender {
 
     /** 附件列表 */
     private final List<Attachment> attachments = new ArrayList<>();
+
   }
 
   /** 附件 */
-  private record Attachment(String fileName, byte[] data) {}
+  private record Attachment(String fileName, byte[] data) {
+  }
 }

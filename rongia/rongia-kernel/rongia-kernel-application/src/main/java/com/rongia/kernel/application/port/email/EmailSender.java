@@ -1,8 +1,9 @@
 package com.rongia.kernel.application.port.email;
 
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 
 /** 邮件发送器 */
+@NullMarked
 public interface EmailSender {
 
   /**
@@ -11,7 +12,7 @@ public interface EmailSender {
    * @param fileName 附件名
    * @param data 附件
    */
-  @NonNull EmailSender attach(@NonNull String fileName, byte[] data);
+  EmailSender attach(String fileName, byte[] data);
 
   /**
    * 设置收件人
@@ -19,7 +20,7 @@ public interface EmailSender {
    * @param to 收件人
    * @return this
    */
-  @NonNull EmailSender to(@NonNull String to);
+  EmailSender to(String to);
 
   /**
    * 设置抄送人
@@ -27,7 +28,7 @@ public interface EmailSender {
    * @param cc 抄送人
    * @return this
    */
-  @NonNull EmailSender cc(@NonNull String cc);
+  EmailSender cc(String cc);
 
   /**
    * 设置标题
@@ -35,7 +36,7 @@ public interface EmailSender {
    * @param subject 标题
    * @return this
    */
-  @NonNull EmailSender subject(@NonNull String subject);
+  EmailSender subject(String subject);
 
   /**
    * 设置内容
@@ -43,7 +44,7 @@ public interface EmailSender {
    * @param content 内容
    * @return this
    */
-  @NonNull EmailSender content(@NonNull String content);
+  EmailSender content(String content);
 
   /** 发送 */
   void send();

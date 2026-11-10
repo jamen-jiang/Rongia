@@ -45,12 +45,10 @@ import org.jspecify.annotations.Nullable;
 @Setter(AccessLevel.PROTECTED)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(
-    name = "SalesOrder",
-    indexes = {
-      @Index(name = "IX_SalesOrder_CustomerId", columnList = "CustomerId"),
-      @Index(name = "IX_SalesOrder_Status", columnList = "Status")
-    })
+@Table(name = "SalesOrder", indexes = {
+    @Index(name = "IX_SalesOrder_CustomerId", columnList = "CustomerId"),
+    @Index(name = "IX_SalesOrder_Status", columnList = "Status")
+})
 public class SalesOrder extends OrderAggregateRoot {
 
   /** 客户Id */
@@ -80,10 +78,7 @@ public class SalesOrder extends OrderAggregateRoot {
   private String remark;
 
   /** 销售订单行 */
-  @OneToMany(
-      fetch = FetchType.EAGER,
-      cascade = {CascadeType.PERSIST, CascadeType.MERGE},
-      orphanRemoval = true)
+  @OneToMany(fetch = FetchType.EAGER, cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = true)
   @JoinColumn(name = "SalesOrderId")
   @SQLRestriction("IsDeleted = 0")
   private List<SalesOrderLine> salesOrderLines = new ArrayList<>();

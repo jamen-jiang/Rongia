@@ -15,7 +15,7 @@
         <!-- 0. 应用级平台层：横切整个应用的运行时装配与技术适配器（被依赖的库） -->
         <dependency>
             <groupId>com.rongia</groupId>
-            <artifactId>rongia-platform</artifactId>
+            <artifactId>rongia-framework</artifactId>
             <version>${project.version}</version>
         </dependency>
 

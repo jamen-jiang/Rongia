@@ -18,7 +18,7 @@
 
     <modules>
         <module>start</module>
-        <module>rongia-platform</module>
+        <module>rongia-framework</module>
         <module>rongia-kernel</module>
         <module>rongia-shared</module>
         <module>rongia-system</module>

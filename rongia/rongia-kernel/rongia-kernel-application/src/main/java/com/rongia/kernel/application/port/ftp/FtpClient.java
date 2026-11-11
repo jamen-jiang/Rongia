@@ -75,7 +75,7 @@ public interface FtpClient {
   boolean directoryExists(String path);
 
   /**
-   * 获取 FTP 目录下的所有文件列表
+   * 获取 FTP 目录下的文件列表（只返回真文件：子目录、软链接、无法解析的条目一律剔除）
    *
    * @param path FTP 目录路径
    * @return 文件列表

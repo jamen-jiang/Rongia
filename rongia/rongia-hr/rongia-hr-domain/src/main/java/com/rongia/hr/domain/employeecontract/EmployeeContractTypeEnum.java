@@ -11,7 +11,7 @@ import org.jspecify.annotations.NullMarked;
  * 这是**法的分类**，不是配置项，所以做成枚举而不是主数据（Odoo 用 {@code hr.contract.type}
  * 主数据，因为它的取值随国家本地化变化，例如比利时的 CDI / CDD / PFI）。
  *
- * <p>与员工上的 {@code EmployeeTypeEnum} 不是一回事：那个说的是员工身份（员工/工人/实习生/
+ * <p>与员工上的 {@code EmployeeTypeEnum} 不是一回事：那个说的是员工身份（正式工/实习生/
  * 外包/自由职业），这个说的是合同期限怎么算。两者可以任意组合。
  */
 @NullMarked

@@ -7,6 +7,9 @@ import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.net.ftp.FTP;
@@ -201,7 +204,7 @@ public class ApacheFtpClient implements FtpClient {
   }
 
   /**
-   * 获取 FTP 目录下的所有文件列表
+   * 获取 FTP 目录下的文件列表
    *
    * @param path FTP 目录路径
    * @return 文件列表
@@ -213,9 +216,15 @@ public class ApacheFtpClient implements FtpClient {
       FTPFile[] files = client.listFiles(path);
       List<FtpFile> result = new ArrayList<>();
       for (FTPFile file : files) {
+        // 只要真文件：目录、软链接、无法解析的条目（含 . 与 ..）isFile() 一律为 false
+        if (!file.isFile()) {
+          continue;
+        }
         FtpFile item = new FtpFile();
         item.setName(file.getName());
-        item.setSize(file.getSize());
+        item.setPath(joinPath(path, file.getName()));
+        item.setSize(file.getSize() < 0 ? null : file.getSize());
+        item.setModifiedTime(toLocalDateTime(file.getTimestampInstant()));
         result.add(item);
       }
       return result;
@@ -288,5 +297,32 @@ public class ApacheFtpClient implements FtpClient {
       current += "/" + part;
       client.makeDirectory(current);
     }
+  }
+
+  /**
+   * 拼接完整路径：目录以 / 结尾就不再补斜杠，否则补一个
+   *
+   * @param directory FTP 目录路径
+   * @param name 文件名
+   * @return 完整路径
+   */
+  private String joinPath(String directory, String name) {
+    if (directory.isEmpty() || directory.endsWith("/")) {
+      return directory + name;
+    }
+    return directory + "/" + name;
+  }
+
+  /**
+   * 转换时间
+   *
+   * @param instant 时间点
+   * @return 本地时间（可空）
+   */
+  private @Nullable LocalDateTime toLocalDateTime(@Nullable Instant instant) {
+    if (instant == null) {
+      return null;
+    }
+    return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
   }
 }
